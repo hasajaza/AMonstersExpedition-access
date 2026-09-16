@@ -1,0 +1,33 @@
+<Project>
+  <!--
+    OPTIONAL. Only edit this file if the build reports that it cannot find your
+    A Monster's Expedition folder.
+
+    Put the folder that contains the game's .exe and the BepInEx folder between the tags, e.g.
+      <AmeDir>D:\SteamLibrary\steamapps\common\A Monster's Expedition</AmeDir>
+
+    Leave it empty to use automatic detection.
+
+    NOTE: the folder name contains an apostrophe. That is fine here, because this is element
+    text. It is NOT safe inside an MSBuild Condition, where the value is expanded before the
+    condition is parsed and the apostrophe would close the quoted string early. Every path test
+    in AMEAccess.csproj therefore uses an item probe instead of a quoted Exists().
+  -->
+  <PropertyGroup>
+    <AmeDir Condition="'$(AmeDir)' == ''"></AmeDir>
+
+    <!--
+      A flag saying whether AmeDir was filled in, so nothing later has to test the path itself.
+      Testing it directly would break: "A Monster's Expedition" contains an apostrophe, and a
+      Condition expands the value before parsing, so the apostrophe would close the quoted
+      string early. The first line below is only ever evaluated while AmeDir is still empty,
+      and the second tests this flag, which can never contain an apostrophe.
+    -->
+    <HasAmeDir Condition="'$(AmeDir)' == ''">false</HasAmeDir>
+    <HasAmeDir Condition="'$(HasAmeDir)' == ''">true</HasAmeDir>
+
+    <!-- true = after a successful build, copy AMEAccess.dll into BepInEx\plugins.
+         Set to false to copy it by hand instead. -->
+    <DeployToGame Condition="'$(DeployToGame)' == ''">true</DeployToGame>
+  </PropertyGroup>
+</Project>

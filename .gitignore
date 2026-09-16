@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+*.user
+# Third-party screen reader DLLs are not redistributed in this repository
+native/nvdaControllerClient*.dll
+native/UniversalSpeech.dll
+# Release packages and logs
+release/
+*.log

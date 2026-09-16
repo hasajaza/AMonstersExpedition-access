@@ -1,0 +1,125 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Your game folder, if automatic detection does not find it. -->
+  <Import Project="GamePath.props" />
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <PlatformTarget>x86</PlatformTarget>
+    <AssemblyName>AMEAccess</AssemblyName>
+    <RootNamespace>AMEAccess</RootNamespace>
+    <Version>1.0.0</Version>
+    <Product>A Monster's Expedition Access</Product>
+    <LangVersion>latest</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType>portable</DebugType>
+    <NoWarn>$(NoWarn);CS0649;CS0169;CS1591</NoWarn>
+    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+
+  <!--
+    Find the game. Candidates are tried in order: the folder you set in GamePath.props, then
+    the usual Steam and GOG locations. The wildcard on *_Data covers both the Steam and GOG
+    builds, whose data folders are named differently.
+  -->
+  <Target Name="FindGame" BeforeTargets="BeforeResolveReferences">
+
+    <ItemGroup>
+      <!-- Your folder wins outright; the usual locations are only tried when you left it blank. -->
+      <_Probe Include="$(AmeDir)\*_Data\Managed\Assembly-CSharp.dll" Condition="'$(HasAmeDir)' == 'true'" />
+      <_Probe Include="C:\Program Files (x86)\Steam\steamapps\common\A Monster's Expedition\*_Data\Managed\Assembly-CSharp.dll" Condition="'$(HasAmeDir)' == 'false'" />
+      <_Probe Include="C:\Program Files\Steam\steamapps\common\A Monster's Expedition\*_Data\Managed\Assembly-CSharp.dll" Condition="'$(HasAmeDir)' == 'false'" />
+      <_Probe Include="D:\SteamLibrary\steamapps\common\A Monster's Expedition\*_Data\Managed\Assembly-CSharp.dll" Condition="'$(HasAmeDir)' == 'false'" />
+      <_Probe Include="E:\SteamLibrary\steamapps\common\A Monster's Expedition\*_Data\Managed\Assembly-CSharp.dll" Condition="'$(HasAmeDir)' == 'false'" />
+      <_Probe Include="C:\GOG Games\A Monsters Expedition\*_Data\Managed\Assembly-CSharp.dll" Condition="'$(HasAmeDir)' == 'false'" />
+    </ItemGroup>
+
+    <Error Condition="'@(_Probe->Count())' > '1'"
+           Text="AMEAccess: found the game in more than one place. Open AMEAccess\GamePath.props and put the folder you want between the AmeDir tags." />
+
+    <Error Condition="'@(_Probe->Count())' == '0'"
+           Text="AMEAccess: cannot find the A Monster's Expedition game folder. Open AMEAccess\GamePath.props and put the folder that contains the game's .exe between the AmeDir tags." />
+
+    <!--
+      Derive the folders from whichever probe matched.
+
+      NOTE: no property function is used here on purpose. System.IO.Path.GetFullPath takes its
+      argument in single quotes, and the Steam folder is "A Monster's Expedition" - the
+      apostrophe closes that string early and the call fails, which is what left GameDir empty
+      and the BepInEx reference unresolved. Plain concatenation with ..\..\ has no such problem:
+      MSBuild passes the path straight to the filesystem, which resolves the dots itself.
+    -->
+    <PropertyGroup>
+      <ManagedDir Condition="'$(ManagedDir)' == ''">@(_Probe->'%(RootDir)%(Directory)')</ManagedDir>
+      <GameDir>$(ManagedDir)..\..\</GameDir>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <_BepInEx Include="$(GameDir)BepInEx\core\BepInEx.dll" />
+    </ItemGroup>
+
+    <Error Condition="'@(_BepInEx->Count())' == '0'"
+           Text="AMEAccess: BepInEx is not installed. Expected $(GameDir)BepInEx\core\BepInEx.dll. Install BepInEx 5.4.x (win_x86) into the game folder, start the game once so it creates its folders, then build again." />
+
+    <ItemGroup>
+      <Reference Include="Assembly-CSharp">
+        <HintPath>$(ManagedDir)Assembly-CSharp.dll</HintPath><Private>false</Private>
+      </Reference>
+      <Reference Include="UnityEngine">
+        <HintPath>$(ManagedDir)UnityEngine.dll</HintPath><Private>false</Private>
+      </Reference>
+      <Reference Include="UnityEngine.CoreModule">
+        <HintPath>$(ManagedDir)UnityEngine.CoreModule.dll</HintPath><Private>false</Private>
+      </Reference>
+      <Reference Include="UnityEngine.InputLegacyModule">
+        <HintPath>$(ManagedDir)UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private>
+      </Reference>
+      <Reference Include="UnityEngine.PhysicsModule">
+        <HintPath>$(ManagedDir)UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private>
+      </Reference>
+      <!--
+        UnityEngine.UI and UnityEngine.UIModule are DIFFERENT assemblies. UIModule holds Canvas
+        and CanvasRenderer only; EventSystem, Toggle, Slider, Button, Dropdown and Text are all
+        in UnityEngine.UI. Confirmed from Assembly-CSharp's TypeRef table. Both are needed.
+      -->
+      <Reference Include="UnityEngine.UIModule">
+        <HintPath>$(ManagedDir)UnityEngine.UIModule.dll</HintPath><Private>false</Private>
+      </Reference>
+      <Reference Include="UnityEngine.UI">
+        <HintPath>$(ManagedDir)UnityEngine.UI.dll</HintPath><Private>false</Private>
+      </Reference>
+      <Reference Include="BepInEx">
+        <HintPath>$(GameDir)BepInEx\core\BepInEx.dll</HintPath><Private>false</Private>
+      </Reference>
+    </ItemGroup>
+
+    <Message Importance="high" Text="AMEAccess: game folder $(GameDir)" />
+  </Target>
+
+  <!-- After a successful build, put the plugin where the game will load it. -->
+  <Target Name="Deploy" AfterTargets="Build" Condition="'$(DeployToGame)' == 'true'">
+    <ItemGroup>
+      <_BepInExPresent Include="$(GameDir)BepInEx\core\BepInEx.dll" />
+      <_Pdb Include="$(TargetDir)$(AssemblyName).pdb" />
+    </ItemGroup>
+
+    <MakeDir Condition="'@(_BepInExPresent->Count())' != '0'"
+             Directories="$(GameDir)BepInEx\plugins" />
+    <Copy Condition="'@(_BepInExPresent->Count())' != '0'"
+          SourceFiles="$(TargetPath)" DestinationFolder="$(GameDir)BepInEx\plugins" ContinueOnError="true" />
+    <Copy Condition="'@(_BepInExPresent->Count())' != '0' and '@(_Pdb->Count())' != '0'"
+          SourceFiles="@(_Pdb)" DestinationFolder="$(GameDir)BepInEx\plugins" ContinueOnError="true" />
+
+    <!-- Speech files belong next to the .exe, where UniversalSpeech looks for its companions. -->
+    <ItemGroup>
+      <_Native Include="$(MSBuildProjectDirectory)\..\native\UniversalSpeech.dll" />
+      <_Native Include="$(MSBuildProjectDirectory)\..\native\nvdaControllerClient32.dll" />
+      <_Native Include="$(MSBuildProjectDirectory)\..\native\nvdaControllerClient.dll" />
+    </ItemGroup>
+    <Copy Condition="'@(_Native->Count())' != '0'"
+          SourceFiles="@(_Native)" DestinationFolder="$(GameDir)" ContinueOnError="true" />
+
+    <Message Importance="high" Text="AMEAccess: installed into $(GameDir)BepInEx\plugins" />
+  </Target>
+
+</Project>
