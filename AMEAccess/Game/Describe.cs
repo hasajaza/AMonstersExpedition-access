@@ -23,12 +23,48 @@ namespace AMEAccess.Game
         /// <summary>Short human name for whatever a piece is.</summary>
         internal static string PieceName(Piece p)
         {
-            string name = BaseName(p);
+            // Name, then number, THEN the details.
+            //
+            // The number used to go on the end of the whole phrase, which turned a tree into
+            // "tree, log 3 1" - two numbers running together with nothing to say which was the
+            // log length and which was the tree. Attaching the number to the noun it belongs to
+            // gives "tree 1, log 3 long", where each number is next to the word it counts.
+            string noun = BaseName(p);
 
-            // Number it only where there is more than one of its kind on the island, so that
-            // two trees are "tree 1" and "tree 2" instead of both just "tree".
             int n = Numbering.Of(p);
-            return n > 0 ? name + " " + n : name;
+            if (n > 0) noun += " " + n;
+
+            string detail = Detail(p);
+            return detail == null ? noun : noun + ", " + detail;
+        }
+
+        /// <summary>
+        /// The measurements that follow the name: what a tree becomes, how a log lies.
+        /// Kept apart from the noun so a number can sit between them.
+        /// </summary>
+        private static string Detail(Piece p)
+        {
+            if (p == null) return null;
+
+            var tree = p as TreeLog;
+            if (tree != null)
+                return tree.logPrefab == null ? null : "log " + tree.logPrefab.length + " long";
+
+            var log = p as Log;
+            if (log != null)
+            {
+                string len = log.length > 1 ? log.length + " long" : null;
+                if (log.standing) return len == null ? "standing" : "standing, " + len;
+
+                // Which axis a lying log runs along decides whether you roll it or slide it.
+                string axis = log.direction.x != 0 ? "lying east to west" : "lying north to south";
+                return len == null ? axis : axis + ", " + len;
+            }
+
+            var raft = p as Raft;
+            if (raft != null && raft.length > 1) return raft.length + " long";
+
+            return null;
         }
 
         private static string BaseName(Piece p)
@@ -42,7 +78,7 @@ namespace AMEAccess.Game
                 case PieceType.Rock: return "rock";
                 case PieceType.Ramp: return "ramp";
                 case PieceType.TreeStump: return "stump";
-                case PieceType.Tree: return TreeName(p);
+                case PieceType.Tree: return "tree";
                 case PieceType.Obstacle: return "boulder";
                 case PieceType.Monument: return "monument";
                 case PieceType.Campfire: return "campfire";
@@ -53,8 +89,8 @@ namespace AMEAccess.Game
                 case PieceType.ActiveSpawnPoint:
                 case PieceType.PassiveSpawnPoint: return "arrival point";
                 case PieceType.Player: return "you";
-                case PieceType.Raft: return RaftName(p);
-                case PieceType.Log: return LogName(p);
+                case PieceType.Raft: return "raft";
+                case PieceType.Log: return "log";
                 case PieceType.Trigger: return "trigger";
                 default: return "something";
             }
@@ -68,36 +104,10 @@ namespace AMEAccess.Game
         /// tree looks, and it decides whether the tree is worth chopping at all - a 2 long log
         /// will not span a 3 tile gap.
         /// </summary>
-        private static string TreeName(Piece p)
-        {
-            var tree = p as TreeLog;
-            if (tree == null || tree.logPrefab == null) return "tree";
-            return "tree, log " + tree.logPrefab.length;
-        }
-
         internal static int TreeLogLength(Piece p)
         {
             var tree = p as TreeLog;
             return (tree == null || tree.logPrefab == null) ? 0 : tree.logPrefab.length;
-        }
-
-        private static string LogName(Piece p)
-        {
-            var log = p as Log;
-            if (log == null) return "log";
-            if (log.standing) return "standing log";
-            // A lying log runs along one axis. Which axis matters, because you can only roll it
-            // sideways and only push it end-on.
-            var d = log.direction;
-            string axis = (d.x != 0) ? "east to west" : "north to south";
-            return "log lying " + axis + (log.length > 1 ? ", " + log.length + " long" : "");
-        }
-
-        private static string RaftName(Piece p)
-        {
-            var r = p as Raft;
-            if (r == null) return "raft";
-            return r.length > 1 ? "raft, " + r.length + " long" : "raft";
         }
 
         private static string VillagerName(Piece p)

@@ -17,30 +17,6 @@ namespace AMEAccess.Game
     {
         internal static bool Enabled => global::Config.enableIslandHints;
 
-        private static Island _shownFor;
-        private static bool _showing;
-
-        /// <summary>Name a key the way a person says it, from the live binding.</summary>
-        private static string KeyName(BepInEx.Configuration.ConfigEntry<BepInEx.Configuration.KeyboardShortcut> e)
-        {
-            var k = e.Value;
-            if (k.MainKey == UnityEngine.KeyCode.None) return "the read hints key";
-
-            string raw = k.ToString();
-            if (string.IsNullOrEmpty(raw)) return k.MainKey.ToString();
-
-            var parts = raw.Split('+');
-            var sb = new StringBuilder();
-            for (int i = parts.Length - 1; i >= 0; i--)
-            {
-                string p = parts[i].Trim();
-                if (p.Length == 0) continue;
-                if (sb.Length > 0) sb.Append(" plus ");
-                sb.Append(p);
-            }
-            return sb.ToString();
-        }
-
         internal static int Count(Island island)
         {
             if (island == null) return 0;
@@ -50,39 +26,18 @@ namespace AMEAccess.Game
             return n;
         }
 
-        /// <summary>Toggle the visual hints, exactly as the in-game hint button does.</summary>
-        internal static string Toggle()
-        {
-            if (!Enabled) return "Island hints are turned off in the game's settings.";
-
-            var island = Refs.CurrentIsland;
-            if (island == null) return "No island to hint about.";
-
-            int n = Count(island);
-            if (n == 0) return "This island has no hints.";
-
-            IslandHinter.ToggleHintsFor(island);
-
-            // IslandHinter keeps its shown/hidden state in private fields, so we track our own.
-            // It is reset whenever the island changes, which is when the game hides them anyway.
-            if (!ReferenceEquals(island, _shownFor)) { _shownFor = island; _showing = false; }
-            _showing = !_showing;
-
-            if (!_showing) return "Hints hidden.";
-
-            // Show and read in one action; asking for a second keypress to hear what appeared
-            // just adds a step a sighted player never takes.
-            return "Hints shown. " + Read();
-        }
-
-        /// <summary>
-        /// Speak where the hints point, the way the ghost logs show it on screen.
-        /// A LogHint carries the target placement; IsHintSatisfied says whether a log or raft
-        /// of matching bounds is already sitting there.
-        /// </summary>
         internal static string Read()
         {
-            if (!Enabled) return "Island hints are turned off in the game's settings.";
+            if (!Enabled)
+                return "Island hints are turned off in the game's settings.";
+
+            // Only read what is on screen.
+            //
+            // Having the setting on is not the same as having the hints showing: the game's
+            // hint key toggles them, and a sighted player with them hidden sees nothing. Reading
+            // them anyway told you the answer to a puzzle you had chosen not to be shown.
+            if (!GameKeys.HintsShowing())
+                return "Hints are not showing. Press the game's hint key to show them.";
 
             var island = Refs.CurrentIsland;
             if (island == null) return "No island to hint about.";

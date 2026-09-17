@@ -1,63 +1,62 @@
 using System.Collections.Generic;
-using System.Text;
 using AMEAccess.Speech;
 
 namespace AMEAccess
 {
     /// <summary>
-    /// The key list, spoken a section at a time.
+    /// The key list, one key per press.
     ///
-    /// Generated from the bindings themselves rather than written by hand, so every key the mod
-    /// binds is in here and none can be described under a key it no longer uses. Each entry is
-    /// the action followed by its key, modifiers first: "east, control plus L".
+    /// Reading a whole section in one utterance was unusable: forty words go past before you
+    /// can act on the first of them, and there is no way back to one you missed. So each press
+    /// reads exactly one binding and you move through them at your own pace, the same way the
+    /// island survey works.
+    ///
+    /// The list is generated from the bindings themselves, so every key the mod has is in it
+    /// and none can be described under a key it no longer uses.
     /// </summary>
     internal static class Help
     {
-        private static int _section = -1;
+        private static int _index = -1;
+        private static string _lastSection;
 
-        private static List<string> Titles()
+        /// <summary>Next key. Wraps round at the end.</summary>
+        internal static string Next(int direction)
         {
-            var titles = new List<string>();
-            foreach (var b in Cfg.AllBindings)
-                if (!titles.Contains(b.Section)) titles.Add(b.Section);
-            return titles;
-        }
+            var all = Cfg.AllBindings;
+            if (all.Count == 0) return "No keys bound.";
 
-        private static string Section(string title)
-        {
-            var sb = new StringBuilder(title).Append(". ");
-            foreach (var b in Cfg.AllBindings)
+            if (_index < 0 && direction > 0)
             {
-                if (b.Section != title) continue;
-                sb.Append(KeyNames.Action(b.Name)).Append(", ")
-                  .Append(KeyNames.Shortcut(b.Entry.Value)).Append(". ");
-            }
-            return sb.ToString();
-        }
-
-        /// <summary>Each press advances one section.</summary>
-        internal static string Next()
-        {
-            var titles = Titles();
-            if (titles.Count == 0) return "No keys bound.";
-
-            _section++;
-            if (_section >= titles.Count + 1) _section = 0;
-
-            // A short orientation first, then the sections.
-            if (_section == 0)
-            {
-                return "Key list, " + (titles.Count + 1) + " parts. Press again for each part. "
-                     + "Movement is the game's own arrow keys. Undo and reset are the game's keys "
-                     + "too, in its controls settings. Everything below is the mod's.";
+                _index = 0;
+                _lastSection = null;
+                return "Key list, " + all.Count + " keys. Press again for the next, "
+                     + "hold shift for the previous. " + Entry(all, 0);
             }
 
-            string title = titles[_section - 1];
-            return "Part " + (_section + 1) + " of " + (titles.Count + 1) + ". " + Section(title)
-                 + (_section == titles.Count ? "That is the end. Press again to start over." : "");
+            _index += direction;
+            if (_index >= all.Count) _index = 0;
+            if (_index < 0) _index = all.Count - 1;
+
+            return Entry(all, _index);
         }
 
-        internal static void Reset() { _section = -1; }
+        /// <summary>One binding: where you are, the section when it changes, the action, the key.</summary>
+        private static string Entry(List<Cfg.Binding> all, int i)
+        {
+            var b = all[i];
+            string head = (i + 1) + " of " + all.Count + ". ";
+
+            // Name the section only when it changes, so it is not repeated fifty times.
+            if (b.Section != _lastSection)
+            {
+                _lastSection = b.Section;
+                head += b.Section + ". ";
+            }
+
+            return head + KeyNames.Action(b.Name) + ", " + KeyNames.Shortcut(b.Entry.Value) + ".";
+        }
+
+        internal static void Reset() { _index = -1; _lastSection = null; }
 
         /// <summary>Write the whole list to the log, so there is a copy to read.</summary>
         internal static void Dump(BepInEx.Logging.ManualLogSource log)

@@ -76,7 +76,7 @@ namespace AMEAccess
                 Cfg.KeyIslandInfo.Value + " island, " +
                 Cfg.KeyFacing.Value + " facing, " +
                 Cfg.KeyStatus.Value + " status, " +
-                Cfg.KeyHint.Value + " hint, " +
+                Cfg.KeyReadHints.Value + " read hints, " +
                 Cfg.KeyRepeat.Value + " repeat.");
         }
 
@@ -138,7 +138,8 @@ namespace AMEAccess
                 MenuReader.DumpFocused(Logger);   // so a mis-read item can be diagnosed from the log
                 return;
             }
-            if (Cfg.Pressed(Cfg.KeyHelp)) { Help.Dump(Logger); Talk.Explicit(Help.Next()); return; }
+            if (Cfg.Pressed(Cfg.KeyHelpPrev)) { Talk.Explicit(Help.Next(-1)); return; }
+            if (Cfg.Pressed(Cfg.KeyHelp)) { Help.Dump(Logger); Talk.Explicit(Help.Next(1)); return; }
             if (Cfg.Pressed(Cfg.KeyPlaquePrev)) { Talk.Explicit(PlaqueLog.Step(-1)); return; }
             if (Cfg.Pressed(Cfg.KeyPlaqueRepeat)) { Talk.Explicit(PlaqueLog.ReadLatest()); return; }
             if (Cfg.Pressed(Cfg.KeyDumpPieces))
@@ -197,7 +198,6 @@ namespace AMEAccess
             if (Cfg.Pressed(Cfg.KeyNextIsland)) { Talk.Explicit(Survey.NearestUnvisited()); return; }
             if (Cfg.Pressed(Cfg.KeyListBookmarks)) { Talk.Explicit(Bookmarks.List()); return; }
 
-            if (Cfg.Pressed(Cfg.KeyHint)) { Talk.Explicit(Hints.Toggle()); return; }
             if (Cfg.Pressed(Cfg.KeyReadHints)) { Talk.Explicit(Hints.Read()); return; }
 
         }
@@ -335,13 +335,16 @@ namespace AMEAccess
             if (!_reviewMode) return false;
 
             int step = 1;
-            var mod = Cfg.CurBigStepModifier.Value.MainKey;
-            if (mod != KeyCode.None && Input.GetKey(mod)) step = Cfg.CursorBigStep.Value;
+            // Either shift counts, the same as everywhere else.
+            if (Cfg.HeldEither(Cfg.CurBigStepModifier.Value.MainKey)) step = Cfg.CursorBigStep.Value;
 
-            if (Cfg.Pressed(Cfg.CurNorth)) { Talk.Explicit(ReviewCursor.Move(Vector3i.north, step)); return true; }
-            if (Cfg.Pressed(Cfg.CurSouth)) { Talk.Explicit(ReviewCursor.Move(Vector3i.south, step)); return true; }
-            if (Cfg.Pressed(Cfg.CurEast)) { Talk.Explicit(ReviewCursor.Move(Vector3i.east, step)); return true; }
-            if (Cfg.Pressed(Cfg.CurWest)) { Talk.Explicit(ReviewCursor.Move(Vector3i.west, step)); return true; }
+            // The jump modifier must not stop the arrow keys matching, so it is ignored here.
+            var jump = Cfg.CurBigStepModifier.Value.MainKey;
+
+            if (Cfg.Pressed(Cfg.CurNorth, jump)) { Talk.Explicit(ReviewCursor.Move(Vector3i.north, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurSouth, jump)) { Talk.Explicit(ReviewCursor.Move(Vector3i.south, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurEast, jump)) { Talk.Explicit(ReviewCursor.Move(Vector3i.east, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurWest, jump)) { Talk.Explicit(ReviewCursor.Move(Vector3i.west, step)); return true; }
 
             if (Cfg.Pressed(Cfg.CurHome)) { Talk.Explicit(ReviewCursor.Home()); return true; }
             if (Cfg.Pressed(Cfg.CurColumn)) { Talk.Explicit(ReviewCursor.ReadColumn()); return true; }

@@ -18,7 +18,7 @@ namespace AMEAccess
         /// mod before - they keep the old key silently, and the documentation stops matching
         /// their install. Raising this version resets the key bindings to the current defaults.
         /// </summary>
-        private const int KeyLayoutVersion = 5;
+        private const int KeyLayoutVersion = 8;
 
         private static ConfigEntry<int> _layoutVersion;
         private static ConfigFile _file;
@@ -103,7 +103,6 @@ namespace AMEAccess
         internal static ConfigEntry<KeyboardShortcut> KeyLookAround;
         internal static ConfigEntry<KeyboardShortcut> KeyIslandInfo;
         internal static ConfigEntry<KeyboardShortcut> KeyFacing;
-        internal static ConfigEntry<KeyboardShortcut> KeyHint;
         internal static ConfigEntry<KeyboardShortcut> KeyRepeat;
         internal static ConfigEntry<KeyboardShortcut> KeySilence;
         internal static ConfigEntry<KeyboardShortcut> KeyStatus;
@@ -126,6 +125,7 @@ namespace AMEAccess
         internal static ConfigEntry<KeyboardShortcut> KeyRebind;
         internal static ConfigEntry<KeyboardShortcut> KeyStats;
         internal static ConfigEntry<KeyboardShortcut> KeyHelp;
+        internal static ConfigEntry<KeyboardShortcut> KeyHelpPrev;
         internal static ConfigEntry<KeyboardShortcut> KeyPlaqueRepeat;
         internal static ConfigEntry<KeyboardShortcut> KeyPlaquePrev;
 
@@ -190,6 +190,7 @@ namespace AMEAccess
         internal static ConfigEntry<string> SpeechEngine;
         internal static ConfigEntry<bool> EnableSapiFallback;
         internal static ConfigEntry<bool> ReadMenus;
+        internal static ConfigEntry<bool> SliderAsPercent;
         internal static ConfigEntry<bool> AnnounceSaveSlots;
         internal static ConfigEntry<float> MenuPollInterval;
         internal static ConfigEntry<KeyboardShortcut> KeyReadFocus;
@@ -213,9 +214,6 @@ namespace AMEAccess
                 "Speak the current island's name and whether you have visited it before.");
             KeyFacing = BindKey(c, K, "Facing", new KeyboardShortcut(KeyCode.E),
                 "Describe the thing you are facing, and read its plaque if it has one.");
-            KeyHint = BindKey(c, K, "Hint", new KeyboardShortcut(KeyCode.J),
-                "Toggle the game's own island hints. Only works when 'Enable Island Hints' " +
-                "is turned on in the game's settings, exactly like the in-game hint button.");
             KeyRepeat = BindKey(c, K, "Repeat", new KeyboardShortcut(KeyCode.Q),
                 "Repeat the last thing spoken.");
             KeySilence = BindKey(c, K, "Silence", new KeyboardShortcut(KeyCode.LeftControl),
@@ -255,9 +253,11 @@ namespace AMEAccess
             KeyReadHints = BindKey(c, K, "ReadHints", new KeyboardShortcut(KeyCode.B),
                 "Read where the island hints point. Only works when 'Enable Island Hints' is on " +
                 "in the game's settings, because that is when a sighted player sees them too.");
+            KeyHelpPrev = BindKey(c, K, "HelpPrevious", new KeyboardShortcut(KeyCode.F1, KeyCode.LeftShift),
+                "Go back one key in the key list. Either shift key works.");
             KeyHelp = BindKey(c, K, "Help", new KeyboardShortcut(KeyCode.F1),
-                "Speak the mod's key list, one section per press. Also writes the whole list to " +
-                "the BepInEx log.");
+                "Read the next key in the mod's key list, one key per press. Also writes the whole " +
+                "list to the BepInEx log.");
             KeyPlaqueRepeat = BindKey(c, K, "PlaqueRepeat", new KeyboardShortcut(KeyCode.F9),
                 "Read the last exhibit plaque again, in full.");
             KeyPlaquePrev = BindKey(c, K, "PlaquePrevious", new KeyboardShortcut(KeyCode.F9, KeyCode.LeftControl),
@@ -290,7 +290,7 @@ namespace AMEAccess
             DirS  = BindKey(c, D, "South",     new KeyboardShortcut(KeyCode.Comma, KeyCode.LeftControl), "Read the tile to the south.");
             DirSE = BindKey(c, D, "SouthEast", new KeyboardShortcut(KeyCode.Period, KeyCode.LeftControl), "Read the tile to the south east.");
 
-            const string C = "Review cursor";
+            const string C = "Review cursor (review mode only)";
             KeyReviewToggle = BindKey(c, C, "ReviewToggle", new KeyboardShortcut(KeyCode.V),
                 "Turn review mode on or off. While it is on your monster cannot move, so the " +
                 "arrow keys drive the review cursor instead. Press again to go back to playing.");
@@ -310,8 +310,10 @@ namespace AMEAccess
             CurRoute = BindKey(c, C, "Route", new KeyboardShortcut(KeyCode.M),
                 "Say whether you could walk to the cursor from here, and in how many steps. " +
                 "This mirrors the path preview the game already draws for mouse players.");
-            CurBigStepModifier = BindKey(c, C, "BigStepModifier", new KeyboardShortcut(KeyCode.RightShift),
-                "Hold with a cursor direction to move several tiles at once. See CursorBigStep.");
+            CurBigStepModifier = BindKey(c, C, "JumpFiveTiles", new KeyboardShortcut(KeyCode.RightShift),
+                "REVIEW MODE ONLY. Hold this with a cursor arrow key to move the review cursor " +
+                "five tiles at a time instead of one. It does nothing on its own. How far it " +
+                "jumps is set by CursorBigStep.");
 
             const string B = "Behaviour";
             AnnounceMoves = c.Bind(B, "AnnounceMoves", true,
@@ -408,6 +410,10 @@ namespace AMEAccess
             EnableSapiFallback = c.Bind(O, "EnableSapiFallback", true,
                 "Turn SAPI on at startup so there is always something able to speak, even when " +
                 "no screen reader is running.");
+            SliderAsPercent = c.Bind(O, "SliderAsPercent", false,
+                "Read sliders as a percentage instead of as steps. Off by default: a volume " +
+                "slider moves in whole steps, so \"10 of 15\" tells you what one arrow press " +
+                "will do, where \"67 percent\" does not.");
             ReadMenus = c.Bind(O, "ReadMenus", true,
                 "Read menus, buttons and settings aloud as you move through them.");
             AnnounceSaveSlots = c.Bind(O, "AnnounceSaveSlots", true,
@@ -456,14 +462,83 @@ namespace AMEAccess
         }
 
         /// <summary>
-        /// BepInEx's KeyboardShortcut.IsDown() already handles modifiers correctly.
-        /// Wrapped so a bare modifier key (the default Silence binding) still works.
+        /// Is a modifier held, counting the left and right key as the same one?
+        /// </summary>
+        internal static bool HeldEither(KeyCode k)
+        {
+            switch (k)
+            {
+                case KeyCode.LeftControl: case KeyCode.RightControl:
+                    return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+                case KeyCode.LeftShift: case KeyCode.RightShift:
+                    return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                case KeyCode.LeftAlt: case KeyCode.RightAlt:
+                    return Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+                default:
+                    return k != KeyCode.None && Input.GetKey(k);
+            }
+        }
+
+        /// <summary>
+        /// Is this binding being pressed right now?
+        ///
+        /// Not KeyboardShortcut.IsDown(), because that matches the exact modifier keys stored in
+        /// the binding. A binding of Shift plus F1 stores LEFT shift, so pressing right shift
+        /// with F1 did nothing at all - and the same went for right control with the direction
+        /// cluster. Left and right of the same modifier are the same key to a person.
+        ///
+        /// The modifiers are read out of KeyboardShortcut.ToString, which renders as
+        /// "F1 + LeftShift". If that text does not start with the main key, the format is not
+        /// what we expect and we fall back to IsDown rather than guess.
+        ///
+        /// The match is exact in the other direction too: a binding with no modifiers does NOT
+        /// fire while control is held, so Ctrl+K cannot also trigger plain K.
         /// </summary>
         internal static bool Pressed(ConfigEntry<KeyboardShortcut> e)
         {
+            return Pressed(e, KeyCode.None);
+        }
+
+        /// <summary>
+        /// As above, but treat one modifier as "do not care".
+        ///
+        /// Needed for the review cursor's arrow keys: they are bound with no modifiers, and the
+        /// exact match above meant that holding the jump-five-tiles shift stopped the arrow
+        /// binding matching at all - so the cursor sat still and only the modifier was noticed.
+        /// </summary>
+        internal static bool Pressed(ConfigEntry<KeyboardShortcut> e, KeyCode ignore)
+        {
             var s = e.Value;
-            if (s.MainKey == KeyCode.None) return false;
-            return s.IsDown();
+            var main = s.MainKey;
+            if (main == KeyCode.None) return false;
+            if (!Input.GetKeyDown(main)) return false;
+
+            bool wantCtrl = false, wantShift = false, wantAlt = false;
+
+            string raw = s.ToString();
+            var parts = (raw ?? "").Split('+');
+
+            if (parts.Length == 0 || parts[0].Trim() != main.ToString())
+                return s.IsDown();          // unfamiliar format; let BepInEx decide
+
+            for (int i = 1; i < parts.Length; i++)
+            {
+                string m = parts[i].Trim();
+                if (m.EndsWith("Control")) wantCtrl = true;
+                else if (m.EndsWith("Shift")) wantShift = true;
+                else if (m.EndsWith("Alt")) wantAlt = true;
+            }
+
+            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            bool alt = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+
+            // Whatever we were told to ignore stops mattering in either direction.
+            if (ignore == KeyCode.LeftControl || ignore == KeyCode.RightControl) ctrl = wantCtrl;
+            if (ignore == KeyCode.LeftShift || ignore == KeyCode.RightShift) shift = wantShift;
+            if (ignore == KeyCode.LeftAlt || ignore == KeyCode.RightAlt) alt = wantAlt;
+
+            return ctrl == wantCtrl && shift == wantShift && alt == wantAlt;
         }
     }
 }

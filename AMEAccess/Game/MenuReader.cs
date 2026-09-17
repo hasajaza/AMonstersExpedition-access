@@ -26,6 +26,7 @@ namespace AMEAccess.Game
     internal static class MenuReader
     {
         private static GameObject _lastSelected;
+        private static string _lastSlider;
         private static string _lastSpoken;
         private static float _nextPoll;
         private static object _lastSlot;
@@ -44,7 +45,20 @@ namespace AMEAccess.Game
 
             var sel = es.currentSelectedGameObject;
             if (sel == null) { _lastSelected = null; return; }
-            if (sel == _lastSelected) return;
+
+            // Moving a slider does not move focus, so without this a volume row is read once
+            // and then stays silent while you are actually adjusting it.
+            if (sel == _lastSelected)
+            {
+                string now = SliderText(sel);
+                if (now != null && now != _lastSlider)
+                {
+                    _lastSlider = now;
+                    Talk.Explicit(now);
+                }
+                return;
+            }
+            _lastSlider = SliderText(sel);
 
             _lastSelected = sel;
 
@@ -329,11 +343,9 @@ namespace AMEAccess.Game
                     object on = GetProp(c, "isOn");
                     if (on is bool) { sb.Append((bool)on ? ", checked" : ", unchecked"); foundToggle = true; }
                 }
-                else if (type == "Slider" || type == "Scrollbar")
-                {
-                    object v = GetProp(c, "value");
-                    if (v != null) sb.Append(", ").Append(Math.Round(Convert.ToDouble(v), 2));
-                }
+                // Sliders are handled after this loop, by capability rather than type name:
+                // the game's are SliderWithLabelHighlight, a SUBCLASS of Slider, so matching
+                // the name exactly never fired and volume rows read without their value.
                 else if (type == "TMP_Dropdown" || type == "Dropdown")
                 {
                     sb.Append(", dropdown");
@@ -360,6 +372,9 @@ namespace AMEAccess.Game
                 object on = FindToggleState(go);
                 if (on is bool) sb.Append((bool)on ? ", checked" : ", unchecked");
             }
+
+            string slider = SliderText(go);
+            if (slider != null) sb.Append(", ").Append(slider);
 
             return Rich.Strip(sb.ToString());
         }
@@ -500,6 +515,85 @@ namespace AMEAccess.Game
             bool hasLetter = false;
             foreach (char ch in t) if (char.IsLetter(ch)) { hasLetter = true; break; }
             return hasLetter;
+        }
+
+        /// <summary>
+        /// Read a slider as a percentage.
+        ///
+        /// Found by capability, not by type name. The game's sliders are
+        /// SliderWithLabelHighlight, which derives from UnityEngine.UI.Slider, so testing for
+        /// the exact name "Slider" never matched and every volume row read without its value.
+        /// Anything carrying value, minValue and maxValue is a slider as far as we care.
+        /// </summary>
+        internal static string SliderText(GameObject go)
+        {
+            var c = FindSlider(go);
+            if (c == null) return null;
+
+            try
+            {
+                double v = Convert.ToDouble(GetProp(c, "value"));
+                double min = Convert.ToDouble(GetProp(c, "minValue"));
+                double max = Convert.ToDouble(GetProp(c, "maxValue"));
+                if (max <= min) return null;
+
+                int pct = (int)Math.Round((v - min) / (max - min) * 100.0);
+
+                // A slider in whole steps is reported as "10 of 15" rather than a percentage.
+                //
+                // That is deliberate. You change these with the arrow keys, one step per press,
+                // so knowing there are fifteen steps and you are on the tenth tells you what a
+                // press will do; "67 percent" does not. Percentages are used for continuous
+                // sliders, where steps have no meaning. SliderAsPercent forces percentages.
+                object whole = GetProp(c, "wholeNumbers");
+                bool stepped = whole is bool && (bool)whole && max - min <= 30;
+
+                if (stepped && !Cfg.SliderAsPercent.Value)
+                    return Math.Round(v) + " of " + Math.Round(max);
+
+                return pct + " percent";
+            }
+            catch { return null; }
+        }
+
+        /// <summary>The slider belonging to this row: on it, below it, beside it, or above it.</summary>
+        private static Component FindSlider(GameObject go)
+        {
+            var c = SliderOn(go, 2);
+            if (c != null) return c;
+
+            Transform parent = go.transform.parent;
+            if (parent == null) return null;
+
+            foreach (Transform sib in parent)
+            {
+                if (sib == go.transform) continue;
+                c = SliderOn(sib.gameObject, 2);
+                if (c != null) return c;
+            }
+            return SliderOn(parent.gameObject, 0);
+        }
+
+        private static Component SliderOn(GameObject go, int depth)
+        {
+            if (go == null || !go.activeInHierarchy) return null;
+
+            foreach (var c in go.GetComponents<Component>())
+            {
+                if (c == null) continue;
+                if (GetProp(c, "value") == null) continue;
+                if (GetProp(c, "minValue") == null) continue;
+                if (GetProp(c, "maxValue") == null) continue;
+                return c;
+            }
+            if (depth <= 0) return null;
+
+            foreach (Transform child in go.transform)
+            {
+                var r = SliderOn(child.gameObject, depth - 1);
+                if (r != null) return r;
+            }
+            return null;
         }
 
         /// <summary>Search an object and its descendants for the first non-empty label.</summary>

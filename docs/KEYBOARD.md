@@ -1,18 +1,29 @@
 # Keyboard reference
 
-All mod keys can be changed:
+Press `F1` in game to hear these, **one key per press**. `Shift+F1` steps back. Either shift
+key works, and so does either control key.
 
-- **in game with `F2`**: step through the actions with `]` and `[`, press Enter on the one you
-  want, then press the new key. `Backspace` puts it back to its default, `Escape` finishes.
-- **in `BepInEx\config\hassan.ameaccess.cfg`**, sections `[Keys]`, `[Direction cluster]` and
-  `[Review cursor]`.
+`F2` changes any key without leaving the game: `]` and `[` step through the actions, Enter
+changes the one you are on, `Backspace` restores its default, `Escape` finishes.
 
-Press `F1` in game to hear the whole list. It is read from your live bindings, so it stays
-correct after you change anything.
+## The game's own keys
 
-None of these clash with the game's own keys, which are `W` `A` `S` `D` for movement,
-`Left Shift` look around, `Z` undo, `R` reset, `Space` select, `Esc` menu, `O` zoom in,
-`P` zoom out, `G` toggle grid and `H` show hint. The rebinder refuses those.
+These belong to the game, not the mod, and the mod never takes them:
+
+| Key | Does |
+|---|---|
+| `W` `A` `S` `D` and arrows | Move |
+| `Left Shift` | Look around |
+| `Z` | Undo |
+| `R` | Reset island |
+| `Space` | Select |
+| `Esc` | Menu |
+| `O` / `P` | Zoom in / out |
+| `G` | Toggle grid, which also turns spoken coordinates on and off |
+| `H` | Show or hide hints. The mod says which you got, and reads where they point |
+
+There is no mod key for hints on purpose: the game's `H` already toggles them and the mod
+announces the result. `B` re-reads where they point, and only while they are actually showing.
 
 ## Keys
 
@@ -22,7 +33,6 @@ None of these clash with the game's own keys, which are `W` `A` `S` `D` for move
 | `L` | Look Around | Speak the four neighbouring tiles and what walking into each would do. |
 | `I` | Island Info | Speak the current island's name and whether you have visited it before. |
 | `E` | Facing | Describe the thing you are facing, and read its plaque if it has one. |
-| `J` | Hint | Toggle the game's own island hints. Only works when 'Enable Island Hints' is turned on in the game's settings, exactly like the in-game hint button. |
 | `Q` | Repeat | Repeat the last thing spoken. |
 | `Ctrl` | Silence | Stop speech immediately. Left Control on its own, which also means every Ctrl+letter in the direction cluster cuts off whatever is speaking before it reads the new tile - the same way a screen reader behaves. |
 | `U` | Status | Speak move count and whether undo or reset is available. |
@@ -40,7 +50,8 @@ None of these clash with the game's own keys, which are `W` `A` `S` `D` for move
 | `'` | List Bookmarks | List the bookmarks you have set. |
 | `N` | Islands Nearby | List other islands in range, with bearing and whether you can walk there now. |
 | `B` | Read Hints | Read where the island hints point. Only works when 'Enable Island Hints' is on in the game's settings, because that is when a sighted player sees them too. |
-| `F1` | Help | Speak the mod's key list, one section per press. Also writes the whole list to the BepInEx log. |
+| `Shift+F1` | Help Previous | Go back one key in the key list. Either shift key works. |
+| `F1` | Help | Read the next key in the mod's key list, one key per press. Also writes the whole list to the BepInEx log. |
 | `F9` | Plaque Repeat | Read the last exhibit plaque again, in full. |
 | `Ctrl+F9` | Plaque Previous | Step back through earlier plaques read this session. |
 | `Y` | Stats | Speak overall progress: islands visited, exhibits discovered, time played. |
@@ -48,7 +59,7 @@ None of these clash with the game's own keys, which are `W` `A` `S` `D` for move
 | `F11` | Read Focus | Re-read the menu item that currently has focus. |
 | `F2` | Change Keys | Change the mod's keys from inside the game, without editing this file. |
 | `F8` | Dump Pieces | Write every piece near you to the BepInEx log, with the reason each was kept or dropped from the survey. Use this when something on screen is not listed. |
-| `F12` | Speech Test | Re-run the speech self test and write the result to BepInEx\LogOutput.log. Works anywhere, including menus. Use this when the mod is silent. |
+| `F12` | Speech Test | Re-run the speech self test and write the result to BepInEx\\LogOutput.log. Works anywhere, including menus. Use this when the mod is silent. |
 
 ## Direction cluster
 
@@ -64,7 +75,7 @@ None of these clash with the game's own keys, which are `W` `A` `S` `D` for move
 | `Ctrl+,` | South | Read the tile to the south. |
 | `Ctrl+.` | South East | Read the tile to the south east. |
 
-## Review cursor
+## Review cursor (review mode only)
 
 | Key | Action | What it does |
 |---|---|---|
@@ -78,11 +89,11 @@ None of these clash with the game's own keys, which are `W` `A` `S` `D` for move
 | `End` | Jump To Item | Jump the review cursor to the object you have selected with the category and item keys. Turns review mode on if it is not already. |
 | `C` | Column | Read everything stacked in the cursor's column, with heights. |
 | `M` | Route | Say whether you could walk to the cursor from here, and in how many steps. This mirrors the path preview the game already draws for mouse players. |
-| `Right Shift` | Big Step Modifier | Hold with a cursor direction to move several tiles at once. See CursorBigStep. |
+| `Right Shift` | Jump Five Tiles | REVIEW MODE ONLY. Hold this with a cursor arrow key to move the review cursor five tiles at a time instead of one. It does nothing on its own. How far it jumps is set by CursorBigStep. |
 
 ## The direction cluster
 
-Nine keys in the shape of the tiles they describe, all held with `Ctrl`:
+Nine keys in the shape of the tiles they describe, held with `Ctrl`:
 
 ```
 Ctrl+U   Ctrl+I   Ctrl+O          north-west   north   north-east

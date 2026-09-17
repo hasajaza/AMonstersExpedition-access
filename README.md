@@ -79,8 +79,8 @@ is the reliable escape hatch, since it bypasses the screen reader entirely.
 
 ## Keyboard
 
-The full reference is in [`docs/KEYBOARD.md`](docs/KEYBOARD.md), and **`F1`** reads it aloud in
-game. **`F2`** changes any key without leaving the game.
+The full reference is in [`docs/KEYBOARD.md`](docs/KEYBOARD.md). **`F1`** reads the keys aloud
+one at a time, `Shift+F1` steps back. **`F2`** changes any key without leaving the game.
 
 | Key | Action |
 |---|---|
@@ -97,6 +97,19 @@ game. **`F2`** changes any key without leaving the game.
 | `\` | Nearest island you have not visited |
 | `1`–`9` | Set a bookmark (review mode) or walk back to it |
 | `Ctrl` + `U I O / J K L / M , .` | Read the eight surrounding tiles |
+
+## How things are named
+
+A name carries its number first, then its measurements, so two numbers never run together:
+
+| You hear | Meaning |
+|---|---|
+| *"tree 1, log 3 long"* | the first tree on this island; chopping it gives a log 3 tiles long |
+| *"log 2, lying east to west, 3 long"* | the second log, its axis, its length |
+| *"boulder 1, 2 steps up, too high to climb"* | which boulder, and why you cannot pass |
+
+Numbers only appear where there is more than one of that kind on the island, and they stay put
+as you walk — they are assigned once per island in a fixed spatial order.
 
 ## Publishing
 
