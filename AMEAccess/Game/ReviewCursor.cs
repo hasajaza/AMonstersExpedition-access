@@ -26,6 +26,13 @@ namespace AMEAccess.Game
             get { if (!_placed) Home(); return _pos; }
         }
 
+        /// <summary>Move the cursor to the player without saying anything.</summary>
+        internal static void FollowPlayer()
+        {
+            _pos = Refs.PlayerPos;
+            _placed = true;
+        }
+
         /// <summary>Put the cursor back on the player.</summary>
         internal static string Home()
         {

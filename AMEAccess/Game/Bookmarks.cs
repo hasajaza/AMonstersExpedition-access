@@ -41,7 +41,7 @@ namespace AMEAccess.Game
             };
 
             return "Bookmark " + slot + " set on " + Slots[slot - 1].What +
-                   ", " + Survey.Relative(Refs.PlayerPos, pos) + ".";
+                   ", " + Survey.Relative(Refs.PlayerPos, pos) + " from you.";
         }
 
         /// <summary>Walking directions to a bookmark.</summary>
@@ -50,7 +50,11 @@ namespace AMEAccess.Game
             if (slot < 1 || slot > 9) return null;
 
             var m = Slots[slot - 1];
-            if (!m.Set) return "Bookmark " + slot + " is empty. Set it in review mode.";
+            // Say how to set it, not where. Setting moved to shift and a number so that it
+            // works however you are looking around; this message still said "in review mode".
+            if (!m.Set)
+                return "Bookmark " + slot + " is empty. Put the cursor where you want it and "
+                     + "press shift and " + slot + ".";
 
             var sb = new StringBuilder("Bookmark ");
             sb.Append(slot).Append(", ").Append(m.What).Append(". ");

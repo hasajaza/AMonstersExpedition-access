@@ -1,5 +1,6 @@
 using System.Text;
 using BepInEx;
+using HarmonyLib;
 using UnityEngine;
 using AMEAccess.Speech;
 
@@ -56,6 +57,8 @@ namespace AMEAccess
 
         private bool _announcedReady;
         private static bool _reviewMode;
+        private static bool _peeking;
+        private Harmony _harmony;
         private bool _loggedNotReady;
         private static int _keysReset;
 
@@ -63,6 +66,19 @@ namespace AMEAccess
         {
             Instance = this;
             Log = Logger;
+
+            // One patch, for the optional arrows-always-review mode. It does nothing at all
+            // unless that setting is on; see ArrowVeto.
+            try
+            {
+                _harmony = new Harmony(Guid);
+                _harmony.PatchAll(typeof(Plugin).Assembly);
+            }
+            catch (System.Exception e)
+            {
+                Logger.LogWarning("Could not apply the input patch: " + e.Message
+                                + ". Arrows-always-review will not work; everything else will.");
+            }
             Cfg.Bind(Config);
             _keysReset = Cfg.ResetKeysIfOutdated();
             if (_keysReset > 0)
@@ -83,6 +99,7 @@ namespace AMEAccess
         private void OnDestroy()
         {
             EnsureMovementRestored();
+            if (_harmony != null) { try { _harmony.UnpatchSelf(); } catch { } }
             Hooks.Unsubscribe();
             Refs.Forget();
         }
@@ -121,6 +138,7 @@ namespace AMEAccess
             // Rebinding owns the keyboard while it is on, so it goes before everything.
             if (Rebinder.Active) { Rebinder.Handle(); return; }
             if (Cfg.Pressed(Cfg.KeyRebind)) { Talk.Explicit(Rebinder.Toggle()); return; }
+            if (Cfg.Pressed(Cfg.KeyArrowMode)) { Talk.Explicit(ToggleArrowMode()); return; }
 
             // Silence works everywhere, including menus.
             // The warp map is its own screen with its own selection to follow.
@@ -173,6 +191,14 @@ namespace AMEAccess
             // be mistaken for plain K.
             if (HandleBookmarks()) return;
             if (HandleCompass()) return;
+
+            // With arrows-always-review on, the arrows are the cursor's and never the
+            // monster's. The veto patch stops the game acting on them; this acts on them here.
+            if (Cfg.ArrowsAlwaysReview.Value && !_reviewMode && !_peeking && HandleArrowCursor())
+                return;
+
+            // Holding the peek key is a momentary review mode, handled before the toggled one.
+            if (HandlePeek()) return;
 
             // Review mode owns the arrow keys while it is on, so it goes first.
             if (HandleReview()) return;
@@ -263,27 +289,32 @@ namespace AMEAccess
         }
 
         /// <summary>
-        /// Number keys 1 to 9.
+        /// Number keys 1 to 9: bookmarks.
         ///
-        /// In review mode a number SETS a bookmark at the cursor. While playing, the same number
-        /// gives walking directions back to it. One key, two meanings, but they can never be
-        /// confused because the modes are exclusive - and it means marking a spot and returning
-        /// to it use the same finger.
+        ///   1 to 9              walking directions to that bookmark
+        ///   shift and 1 to 9    set that bookmark at the review cursor
+        ///   control and 1 to 9  clear it
         ///
-        /// Ctrl plus a number clears that bookmark.
+        /// Which action you get used to depend on whether review mode was on: a number set a
+        /// bookmark in review mode and recalled one otherwise. That broke as soon as there was
+        /// more than one way to look around - holding the peek key and arrows-always-review
+        /// both move the cursor without review mode being on, so a number could only ever
+        /// recall and there was no way left to set one.
+        ///
+        /// A modifier says which action you mean, so it no longer matters how you are looking.
         /// </summary>
         private static bool HandleBookmarks()
         {
-            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            bool ctrl = Cfg.HeldEither(KeyCode.LeftControl);
+            bool shift = Cfg.HeldEither(KeyCode.LeftShift);
 
             for (int i = 1; i <= 9; i++)
             {
                 var key = (KeyCode)((int)KeyCode.Alpha1 + (i - 1));
                 if (!Input.GetKeyDown(key)) continue;
 
-                if (ctrl) { Talk.Explicit(Bookmarks.Clear(i)); return true; }
-
-                if (_reviewMode) Talk.Explicit(Bookmarks.Set(i, ReviewCursor.Position));
+                if (ctrl) Talk.Explicit(Bookmarks.Clear(i));
+                else if (shift) Talk.Explicit(Bookmarks.Set(i, ReviewCursor.Position));
                 else Talk.Explicit(Bookmarks.Go(i));
                 return true;
             }
@@ -294,21 +325,163 @@ namespace AMEAccess
         /// The eight-direction letter cluster, U I O / J K L / M , . held with Ctrl.
         /// Returns true if one was pressed.
         /// </summary>
+        /// <summary>
+        /// True whenever the review cursor is the thing you are moving, by any of the three
+        /// ways of looking around. Anything that used to ask "is review mode on?" should ask
+        /// this instead, or it goes wrong in the other two.
+        /// </summary>
+        private static bool CursorIsLive =>
+            _reviewMode || _peeking || Cfg.ArrowsAlwaysReview.Value;
+
         private static bool HandleCompass()
         {
-            if (Cfg.Pressed(Cfg.DirHere)) { Talk.Explicit(Compass.Here(_reviewMode)); return true; }
+            bool atCursor = CursorIsLive;
 
-            if (Cfg.Pressed(Cfg.DirN))  { Talk.Explicit(Compass.Read(Vector3i.north, _reviewMode)); return true; }
-            if (Cfg.Pressed(Cfg.DirS))  { Talk.Explicit(Compass.Read(Vector3i.south, _reviewMode)); return true; }
-            if (Cfg.Pressed(Cfg.DirE))  { Talk.Explicit(Compass.Read(Vector3i.east, _reviewMode)); return true; }
-            if (Cfg.Pressed(Cfg.DirW))  { Talk.Explicit(Compass.Read(Vector3i.west, _reviewMode)); return true; }
+            if (Cfg.Pressed(Cfg.DirHere)) { Talk.Explicit(Compass.Here(atCursor)); return true; }
 
-            if (Cfg.Pressed(Cfg.DirNE)) { Talk.Explicit(Compass.Read(Compass.NorthEast, _reviewMode)); return true; }
-            if (Cfg.Pressed(Cfg.DirSE)) { Talk.Explicit(Compass.Read(Compass.SouthEast, _reviewMode)); return true; }
-            if (Cfg.Pressed(Cfg.DirSW)) { Talk.Explicit(Compass.Read(Compass.SouthWest, _reviewMode)); return true; }
-            if (Cfg.Pressed(Cfg.DirNW)) { Talk.Explicit(Compass.Read(Compass.NorthWest, _reviewMode)); return true; }
+            if (Cfg.Pressed(Cfg.DirN))  { Talk.Explicit(Compass.Read(Vector3i.north, atCursor)); return true; }
+            if (Cfg.Pressed(Cfg.DirS))  { Talk.Explicit(Compass.Read(Vector3i.south, atCursor)); return true; }
+            if (Cfg.Pressed(Cfg.DirE))  { Talk.Explicit(Compass.Read(Vector3i.east, atCursor)); return true; }
+            if (Cfg.Pressed(Cfg.DirW))  { Talk.Explicit(Compass.Read(Vector3i.west, atCursor)); return true; }
+
+            if (Cfg.Pressed(Cfg.DirNE)) { Talk.Explicit(Compass.Read(Compass.NorthEast, atCursor)); return true; }
+            if (Cfg.Pressed(Cfg.DirSE)) { Talk.Explicit(Compass.Read(Compass.SouthEast, atCursor)); return true; }
+            if (Cfg.Pressed(Cfg.DirSW)) { Talk.Explicit(Compass.Read(Compass.SouthWest, atCursor)); return true; }
+            if (Cfg.Pressed(Cfg.DirNW)) { Talk.Explicit(Compass.Read(Compass.NorthWest, atCursor)); return true; }
 
             return false;
+        }
+
+        /// <summary>
+        /// Switch what the arrow keys do, without opening the config file.
+        ///
+        /// Any look in progress is ended first, so the two ways of moving the cursor can never
+        /// be half-on at once, and movement is always handed back before the change takes
+        /// effect. The setting is saved immediately, so it survives quitting.
+        /// </summary>
+        private static string ToggleArrowMode()
+        {
+            if (_reviewMode) SetReviewMode(false);
+            if (_peeking) EndPeek();
+
+            bool on = !Cfg.ArrowsAlwaysReview.Value;
+            Cfg.ArrowsAlwaysReview.Value = on;
+            Cfg.Save();
+
+            if (on)
+            {
+                ReviewCursor.Home();
+                return "Arrow keys now move the review cursor. Walk with W, A, S and D. "
+                     + "Shift and a number sets a bookmark.";
+            }
+
+            return "Arrow keys move your monster again. Hold "
+                 + Cfg.CurPeekModifier.Value.MainKey + " with them for a quick look, or press "
+                 + Cfg.KeyReviewToggle.Value.MainKey + " for review mode.";
+        }
+
+        /// <summary>
+        /// The arrow keys as a permanent review cursor, for players who chose that.
+        ///
+        /// Walking is W A S D, which the game handles itself. Nothing here freezes movement:
+        /// the veto patch simply stops the game acting on arrow-only frames, so there is no
+        /// mode to get stuck in.
+        /// </summary>
+        private static bool HandleArrowCursor()
+        {
+            int step = 1;
+            if (Cfg.HeldEither(Cfg.CurBigStepModifier.Value.MainKey)) step = Cfg.CursorBigStep.Value;
+
+            var jump = Cfg.CurBigStepModifier.Value.MainKey;
+
+            if (Cfg.Pressed(Cfg.CurNorth, jump)) { Talk.Explicit(ReviewCursor.Move(Vector3i.north, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurSouth, jump)) { Talk.Explicit(ReviewCursor.Move(Vector3i.south, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurEast, jump)) { Talk.Explicit(ReviewCursor.Move(Vector3i.east, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurWest, jump)) { Talk.Explicit(ReviewCursor.Move(Vector3i.west, step)); return true; }
+
+            if (Cfg.Pressed(Cfg.CurHome) || Cfg.Pressed(Cfg.CurHomeAlt))
+            { Talk.Explicit(ReviewCursor.Home()); return true; }
+
+            // Everything review mode offers for the cursor, since the cursor is live here too.
+            // Without these, the column and route keys were dead in this mode - they were only
+            // ever reached through the review-mode handler.
+            if (Cfg.Pressed(Cfg.CurColumn)) { Talk.Explicit(ReviewCursor.ReadColumn()); return true; }
+            if (Cfg.Pressed(Cfg.CurRoute)) { Talk.Explicit(ReviewCursor.RouteHere()); return true; }
+            if (Cfg.Pressed(Cfg.KeyInspect)) { Talk.Explicit(ReviewCursor.Inspect()); return true; }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Hold-to-look: the arrow keys move the review cursor while the peek key is held.
+        ///
+        /// This exists because toggling review mode costs two presses around every glance, and
+        /// glancing is the commonest thing you do. Holding a key instead is one press, with
+        /// nothing to enter, leave or forget.
+        ///
+        /// The arrow keys cannot simply be reassigned, because the game reads MOVEMENT from
+        /// Rewired's axes, which both the arrows and W A S D feed - holding alt does not stop
+        /// the game seeing an arrow press. So movement is switched off for exactly as long as
+        /// the key is held, and switched back on the moment it is released.
+        ///
+        /// Returns true while the peek key is held, so nothing else acts on those presses.
+        /// </summary>
+        private static bool HandlePeek()
+        {
+            // The toggled review mode already owns the arrows; do not fight it.
+            if (_reviewMode) return false;
+
+            bool held = Cfg.HeldEither(Cfg.CurPeekModifier.Value.MainKey);
+
+            if (!held)
+            {
+                if (_peeking) EndPeek();
+                return false;
+            }
+
+            if (!_peeking)
+            {
+                var input = Refs.KeyboardInput;
+                if (input == null) return false;
+
+                _peeking = true;
+                input.enabled = false;
+
+                // Start each look from your monster, so a glance is always about where you are
+                // rather than wherever the cursor happened to be left.
+                ReviewCursor.Home();
+            }
+
+            int step = 1;
+            if (Cfg.HeldEither(Cfg.CurBigStepModifier.Value.MainKey)) step = Cfg.CursorBigStep.Value;
+
+            var peek = Cfg.CurPeekModifier.Value.MainKey;
+
+            if (Cfg.Pressed(Cfg.CurNorth, peek) || Input.GetKeyDown(KeyCode.UpArrow))
+            { Talk.Explicit(ReviewCursor.Move(Vector3i.north, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurSouth, peek) || Input.GetKeyDown(KeyCode.DownArrow))
+            { Talk.Explicit(ReviewCursor.Move(Vector3i.south, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurEast, peek) || Input.GetKeyDown(KeyCode.RightArrow))
+            { Talk.Explicit(ReviewCursor.Move(Vector3i.east, step)); return true; }
+            if (Cfg.Pressed(Cfg.CurWest, peek) || Input.GetKeyDown(KeyCode.LeftArrow))
+            { Talk.Explicit(ReviewCursor.Move(Vector3i.west, step)); return true; }
+
+            if (Input.GetKeyDown(Cfg.CurColumn.Value.MainKey))
+            { Talk.Explicit(ReviewCursor.ReadColumn()); return true; }
+            if (Input.GetKeyDown(Cfg.CurRoute.Value.MainKey))
+            { Talk.Explicit(ReviewCursor.RouteHere()); return true; }
+            if (Input.GetKeyDown(KeyCode.Return))
+            { Talk.Explicit(ReviewCursor.Inspect()); return true; }
+
+            return true;   // swallow everything else while the key is held
+        }
+
+        /// <summary>Give the arrow keys back to the game.</summary>
+        private static void EndPeek()
+        {
+            _peeking = false;
+            var input = Refs.KeyboardInput;
+            if (input != null) input.enabled = true;
         }
 
         /// <summary>
@@ -392,8 +565,13 @@ namespace AMEAccess
             }
             if (piece == null) return "Nothing selected.";
 
+            // Only switch review mode on when that is the only way to have a live cursor.
+            //
+            // With the arrows already driving the cursor, or while the peek key is held, the
+            // cursor is live already - turning review mode on as well froze movement for no
+            // reason and left you in a mode you had not asked for.
             string prefix = "";
-            if (!_reviewMode)
+            if (!_reviewMode && !_peeking && !Cfg.ArrowsAlwaysReview.Value)
             {
                 var input = Refs.KeyboardInput;
                 if (input != null)
@@ -434,6 +612,7 @@ namespace AMEAccess
         /// <summary>Never leave the player stuck with movement disabled.</summary>
         private static void EnsureMovementRestored()
         {
+            if (_peeking) EndPeek();
             if (!_reviewMode) return;
             var input = Refs.KeyboardInput;
             if (input != null) input.enabled = true;

@@ -44,19 +44,24 @@ namespace AMEAccess.Game
         /// you can park it somewhere across the island and feel around it; otherwise it reads
         /// around your monster.
         /// </summary>
-        private static Vector3i Origin(bool reviewMode)
-            => reviewMode ? ReviewCursor.Position : Refs.PlayerPos;
+        /// <summary>
+        /// Where the cluster reads from: the review cursor whenever the cursor is the thing you
+        /// are moving, otherwise your monster. The caller decides, because there are three ways
+        /// for the cursor to be live and none of them is "review mode" specifically.
+        /// </summary>
+        private static Vector3i Origin(bool atCursor)
+            => atCursor ? ReviewCursor.Position : Refs.PlayerPos;
 
         /// <summary>Read one of the eight surrounding tiles.</summary>
-        internal static string Read(Vector3i dir, bool reviewMode)
+        internal static string Read(Vector3i dir, bool atCursor)
         {
-            var origin = Origin(reviewMode);
+            var origin = Origin(atCursor);
             var sb = new StringBuilder();
             sb.Append(Name(dir)).Append(": ");
 
             // Cardinals get the full treatment, including whether walking there would chop or
             // push, because the game can only interact along those four.
-            if (IsCardinal(dir) && !reviewMode)
+            if (IsCardinal(dir) && !atCursor)
             {
                 sb.Append(Describe.Neighbour(dir));
                 return sb.Append('.').ToString();
@@ -77,9 +82,9 @@ namespace AMEAccess.Game
         }
 
         /// <summary>The centre key: where the reading is being taken from.</summary>
-        internal static string Here(bool reviewMode)
+        internal static string Here(bool atCursor)
         {
-            if (!reviewMode) return Describe.WhereAmI();
+            if (!atCursor) return Describe.WhereAmI();
             return "Cursor. " + ReviewCursor.Read();
         }
     }

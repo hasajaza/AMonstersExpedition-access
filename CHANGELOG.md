@@ -1,5 +1,98 @@
 # Changelog
 
+## 1.1.0
+
+- **The downloads are fixed.** The 1.0.0 and 1.0.1 zips were built with Windows PowerShell's
+  `Compress-Archive`, which writes paths with backslashes and no folder entries. The zip format
+  requires forward slashes, so viewers that follow it showed `BepInEx\plugins\AMEAccess.dll` as
+  one oddly named file or not at all, and the mod-only zip appeared to hold nothing but the
+  speech DLLs. The release script now writes zips through .NET directly, then reopens each one
+  and refuses to finish unless every path uses forward slashes and every required file is in it.
+
+- **Reset brings the review cursor back to you.** A reset puts your monster back where the island
+  started, and a cursor left anywhere else was pointing at a place that no longer meant
+  anything. Undo and redo do the same when `CursorFollowsPlayer` is on. An island reset plays a
+  transition and only puts your monster back partway through it, so the cursor waits for you to
+  actually move, for up to two seconds, rather than snapping on the event and catching your old
+  position.
+
+- **Not everything is an exhibit.** The game uses one piece type for exhibits, benches, huts,
+  trophies, friends, the ferry and plain props, and the mod called all of them exhibits — so a
+  post in the water and an empty patch of sea turned up in the exhibit count.
+
+  An exhibit is now precisely a landmark with plaque text. The rest are named for what they do:
+  friend, bench, coffee hut, popcorn hut, trophy, ferry. A prop that does nothing but is solid
+  — the kind that stops a raft — is a "fixed object", named from what the game calls it. A prop
+  that does nothing and blocks nothing is left out of the survey, like scenery.
+
+  Walking into a prop no longer promises a plaque; it says it is in the way. `F8` now shows each
+  landmark's kind, behaviour and prefab name, so a misclassified one is visible at once.
+
+- **The cursor comes with you when you walk**, in arrow-cursor mode. It stayed where it was, so
+  after a step every reading was relative to a spot you had walked away from. Set
+  `CursorFollowsPlayer` to false to leave it behind, which is useful for keeping a spot marked
+  while you walk towards it.
+
+- **The rebinder no longer refuses the arrow keys for cursor directions.** It treats the game's
+  keys as off limits, which is right in general but wrong for the arrows: they are the review
+  cursor's own directions, and in arrow-cursor mode they belong to the mod outright. You could
+  move a cursor direction off the arrows and then be unable to put it back.
+
+- **An empty bookmark says how to set one.** The message still read "set it in review mode"
+  after setting had moved to shift and a number.
+- **The direction cluster follows the cursor in all three ways of looking around**, not only in
+  review mode. Every place that asked "is review mode on?" now asks whether the cursor is the
+  thing you are moving, which is the question that was actually meant.
+
+- **`End` no longer drags you into review mode.** With the arrows already driving the cursor, or
+  while the peek key is held, the cursor is live already — switching review mode on as well
+  froze movement for no reason and left you in a mode you had not asked for. It now only does
+  that when it is the only way to have a live cursor.
+- **The column, route and inspect keys work in arrow-cursor mode.** They were only ever reached
+  through the review-mode handler, so they were dead when the arrows drove the cursor without it.
+
+- **`F3` switches what the arrow keys do**, so there is no config file to edit and no restart.
+  It says which mode you landed in, and is saved straight away so it survives quitting. Any look
+  in progress is ended first, so the two ways of moving the cursor can never be half-on at once.
+
+- **Bookmarks work however you are looking around.** A number key set a bookmark in review mode
+  and recalled one otherwise, which broke as soon as there was more than one way to move the
+  cursor: holding the peek key and arrows-always-review both move it without review mode being
+  on, so a number could only ever recall and there was no way left to set one.
+
+  A modifier now says which action you mean: `1` to `9` walks you to a bookmark, `Shift` and a
+  number sets one at the cursor, `Ctrl` and a number clears it. The mode no longer matters.
+
+- **New setting: `ArrowsAlwaysReview`.** With it on, the arrow keys drive the review cursor
+  permanently and you walk with W A S D, so there are no modes to switch between at all. Off by
+  default, and `V` still works either way, so there is always a way back if it misbehaves.
+
+  W A S D movement stays the game's own code. The arrows could not simply be reassigned,
+  because the game reads movement from Rewired's axes and both the arrows and W A S D feed
+  them — by the time the game sees a value, which key produced it is gone. So a single Harmony
+  patch vetoes the game's input method on frames where an arrow is down and no W A S D key is.
+  Every other frame runs untouched: input buffering, sitting, the undo hold and the first-move
+  case are all still the game's, not reimplemented.
+
+  This is the mod's only Harmony patch. Everything else reads state or subscribes to the game's
+  own events.
+
+- **Hold `Alt` and use the arrow keys to look around**, without entering review mode. Movement
+  is frozen only while the key is held, so letting go gives the arrows straight back to walking.
+  Toggling review mode cost two presses around every glance, and glancing is the commonest thing
+  you do.
+
+  While held, `C` reads the column, `M` gives walking directions and `Enter` inspects, the same
+  as in review mode. Each look starts from your monster rather than wherever the cursor was
+  left, so a glance is always about where you are.
+
+  `V` still toggles review mode for a longer look; nothing about it has changed.
+
+  The arrow keys could not simply be reassigned: the game reads movement from Rewired's axes,
+  which both the arrows and W A S D feed, so holding a modifier does not stop the game seeing an
+  arrow press. Switching movement off for exactly as long as the key is held is what makes this
+  work.
+
 ## 1.0.1
 
 - **Two numbers no longer run together on a tree.** A tree read as "tree, log 3 1" — the log

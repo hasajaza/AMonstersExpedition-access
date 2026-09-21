@@ -133,12 +133,16 @@ namespace AMEAccess
                 return true;
             }
 
+            var all = All;
+            if (_index < 0 || _index >= all.Count) return true;
+            var target = all[_index];
+
             foreach (KeyCode k in Enum.GetValues(typeof(KeyCode)))
             {
                 if (!Input.GetKeyDown(k)) continue;
                 if (IsModifier(k)) continue;          // a modifier alone is not a binding
 
-                if (Array.IndexOf(GameKeys, k) >= 0)
+                if (Array.IndexOf(GameKeys, k) >= 0 && !AllowedAnyway(k, target))
                 {
                     Talk.Explicit(KeyNames.Key(k.ToString())
                         + " is used by the game itself. Pick another key.");
@@ -156,9 +160,6 @@ namespace AMEAccess
                 var shortcut = mods.Count == 0
                     ? new KeyboardShortcutOf(k)
                     : new KeyboardShortcutOf(k, mods.ToArray());
-
-                var all = All;
-                var target = all[_index];
 
                 string clash = ClashingAction(shortcut.Value, target.Section, target.Name);
                 if (clash != null)
@@ -178,6 +179,23 @@ namespace AMEAccess
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Some game keys are legitimate for some actions.
+        ///
+        /// The arrow keys are the review cursor's own directions, and in arrow-cursor mode they
+        /// belong to the mod outright. Refusing them flatly meant you could move a cursor
+        /// direction off the arrows and then be unable to put it back, which is a trap.
+        /// </summary>
+        private static bool AllowedAnyway(KeyCode k, Cfg.Binding target)
+        {
+            bool arrow = k == KeyCode.UpArrow || k == KeyCode.DownArrow
+                      || k == KeyCode.LeftArrow || k == KeyCode.RightArrow;
+            if (!arrow) return false;
+
+            if (Cfg.ArrowsAlwaysReview.Value) return true;      // the mod owns them in that mode
+            return target.Section.StartsWith("Review cursor");  // cursor directions are arrows by design
         }
 
         private static bool IsModifier(KeyCode k) => Array.IndexOf(Modifiers, k) >= 0;

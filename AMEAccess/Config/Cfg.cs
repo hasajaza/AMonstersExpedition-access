@@ -18,7 +18,7 @@ namespace AMEAccess
         /// mod before - they keep the old key silently, and the documentation stops matching
         /// their install. Raising this version resets the key bindings to the current defaults.
         /// </summary>
-        private const int KeyLayoutVersion = 8;
+        private const int KeyLayoutVersion = 10;
 
         private static ConfigEntry<int> _layoutVersion;
         private static ConfigFile _file;
@@ -123,6 +123,7 @@ namespace AMEAccess
         internal static ConfigEntry<KeyboardShortcut> KeySpeechTest;
         internal static ConfigEntry<KeyboardShortcut> KeyDumpPieces;
         internal static ConfigEntry<KeyboardShortcut> KeyRebind;
+        internal static ConfigEntry<KeyboardShortcut> KeyArrowMode;
         internal static ConfigEntry<KeyboardShortcut> KeyStats;
         internal static ConfigEntry<KeyboardShortcut> KeyHelp;
         internal static ConfigEntry<KeyboardShortcut> KeyHelpPrev;
@@ -150,6 +151,7 @@ namespace AMEAccess
         internal static ConfigEntry<KeyboardShortcut> CurHome;
         internal static ConfigEntry<KeyboardShortcut> CurHomeAlt;
         internal static ConfigEntry<KeyboardShortcut> CurJumpToItem;
+        internal static ConfigEntry<KeyboardShortcut> CurPeekModifier;
         internal static ConfigEntry<KeyboardShortcut> CurColumn;
         internal static ConfigEntry<KeyboardShortcut> CurRoute;
         internal static ConfigEntry<KeyboardShortcut> CurBigStepModifier;
@@ -190,6 +192,8 @@ namespace AMEAccess
         internal static ConfigEntry<string> SpeechEngine;
         internal static ConfigEntry<bool> EnableSapiFallback;
         internal static ConfigEntry<bool> ReadMenus;
+        internal static ConfigEntry<bool> ArrowsAlwaysReview;
+        internal static ConfigEntry<bool> CursorFollowsPlayer;
         internal static ConfigEntry<bool> SliderAsPercent;
         internal static ConfigEntry<bool> AnnounceSaveSlots;
         internal static ConfigEntry<float> MenuPollInterval;
@@ -269,6 +273,10 @@ namespace AMEAccess
                 "is the play time, date, islands visited and exhibits found.");
             KeyReadFocus = BindKey(c, K, "ReadFocus", new KeyboardShortcut(KeyCode.F11),
                 "Re-read the menu item that currently has focus.");
+            KeyArrowMode = BindKey(c, K, "ArrowModeToggle", new KeyboardShortcut(KeyCode.F3),
+                "Switch between the arrow keys moving your monster and the arrow keys moving " +
+                "the review cursor. Saved straight away, so it survives quitting. Same setting " +
+                "as ArrowsAlwaysReview, without opening this file.");
             KeyRebind = BindKey(c, K, "ChangeKeys", new KeyboardShortcut(KeyCode.F2),
                 "Change the mod's keys from inside the game, without editing this file.");
             KeyDumpPieces = BindKey(c, K, "DumpPieces", new KeyboardShortcut(KeyCode.F8),
@@ -284,7 +292,7 @@ namespace AMEAccess
             DirN  = BindKey(c, D, "North",     new KeyboardShortcut(KeyCode.I, KeyCode.LeftControl), "Read the tile to the north.");
             DirNE = BindKey(c, D, "NorthEast", new KeyboardShortcut(KeyCode.O, KeyCode.LeftControl), "Read the tile to the north east.");
             DirW  = BindKey(c, D, "West",      new KeyboardShortcut(KeyCode.J, KeyCode.LeftControl), "Read the tile to the west.");
-            DirHere = BindKey(c, D, "Here",    new KeyboardShortcut(KeyCode.K, KeyCode.LeftControl), "Read where the cluster is centred: your monster, or the cursor in review mode.");
+            DirHere = BindKey(c, D, "Here",    new KeyboardShortcut(KeyCode.K, KeyCode.LeftControl), "Read where the cluster is centred: your monster, or the review cursor whenever the cursor is the thing you are moving.");
             DirE  = BindKey(c, D, "East",      new KeyboardShortcut(KeyCode.L, KeyCode.LeftControl), "Read the tile to the east.");
             DirSW = BindKey(c, D, "SouthWest", new KeyboardShortcut(KeyCode.M, KeyCode.LeftControl), "Read the tile to the south west.");
             DirS  = BindKey(c, D, "South",     new KeyboardShortcut(KeyCode.Comma, KeyCode.LeftControl), "Read the tile to the south.");
@@ -302,6 +310,11 @@ namespace AMEAccess
                 "Snap the cursor back to your monster.");
             CurHomeAlt = BindKey(c, C, "HomeAlt", new KeyboardShortcut(KeyCode.Home),
                 "Second key for snapping the cursor back to your monster.");
+            CurPeekModifier = BindKey(c, C, "PeekHold", new KeyboardShortcut(KeyCode.LeftAlt),
+                "HOLD this and use the arrow keys to move the review cursor WITHOUT entering " +
+                "review mode. Movement is frozen only while it is held, so let go and the arrow " +
+                "keys walk again. Either alt key works. This is the quick way to look around; " +
+                "the review toggle is for a longer look.");
             CurJumpToItem = BindKey(c, C, "JumpToItem", new KeyboardShortcut(KeyCode.End),
                 "Jump the review cursor to the object you have selected with the category and " +
                 "item keys. Turns review mode on if it is not already.");
@@ -410,6 +423,15 @@ namespace AMEAccess
             EnableSapiFallback = c.Bind(O, "EnableSapiFallback", true,
                 "Turn SAPI on at startup so there is always something able to speak, even when " +
                 "no screen reader is running.");
+            CursorFollowsPlayer = c.Bind(B, "CursorFollowsPlayer", true,
+                "With the arrow keys driving the cursor, bring the cursor back to your monster " +
+                "each time you walk. Turn off to leave it where you put it, which is useful for " +
+                "keeping a spot marked while you walk towards it.");
+            ArrowsAlwaysReview = c.Bind(B, "ArrowsAlwaysReview", false,
+                "Give the arrow keys to the review cursor permanently, and walk with W A S D. " +
+                "Off by default. With it on you never switch modes, but the arrow keys no " +
+                "longer move your monster, which is what they do for everyone else. The review " +
+                "toggle still works either way, so there is always a way back.");
             SliderAsPercent = c.Bind(O, "SliderAsPercent", false,
                 "Read sliders as a percentage instead of as steps. Off by default: a volume " +
                 "slider moves in whole steps, so \"10 of 15\" tells you what one arrow press " +

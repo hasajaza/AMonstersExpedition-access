@@ -99,6 +99,16 @@ namespace AMEAccess.Game
         private static void OnPlayerMoved()
         {
             _movedThisFrame = true;
+
+            // Bring the cursor with you when the arrows are driving it.
+            //
+            // In that mode the cursor is where you are looking, and after a step you are looking
+            // from somewhere else - leaving it behind meant every reading was relative to a spot
+            // you had walked away from. Review mode is different: the monster cannot move there,
+            // so nothing to follow.
+            if (Cfg.ArrowsAlwaysReview.Value && Cfg.CursorFollowsPlayer.Value)
+                ReviewCursor.FollowPlayer();
+
             if (!Cfg.AnnounceMoves.Value || !Refs.InPlay) return;
 
             // How much to say is the player's call. A sighted player re-reads the whole screen
@@ -160,6 +170,7 @@ namespace AMEAccess.Game
         /// <summary>Called once per frame by the plugin, after all events have fired.</summary>
         internal static void EndOfFrame()
         {
+            TickSnap();
             if (_actedThisFrame && !_movedThisFrame && !_interactedThisFrame
                 && Cfg.AnnounceBlocked.Value && Refs.InPlay)
             {
@@ -200,15 +211,65 @@ namespace AMEAccess.Game
 
         private static void OnIslandReset(Island island)
         {
+            SnapCursorSoon();
             if (!Cfg.AnnounceUndoReset.Value) return;
             Talk.Explicit("Island reset.");
         }
 
         // --- history ----------------------------------------------------------
 
-        private static void OnUndo() { if (Cfg.AnnounceUndoReset.Value) Talk.Incidental("Undo."); }
-        private static void OnRedo() { if (Cfg.AnnounceUndoReset.Value) Talk.Incidental("Redo."); }
-        private static void OnReset() { if (Cfg.AnnounceUndoReset.Value) Talk.Explicit("Reset."); }
+        private static void OnUndo()
+        {
+            if (Cfg.CursorFollowsPlayer.Value) SnapCursorSoon();
+            if (Cfg.AnnounceUndoReset.Value) Talk.Incidental("Undo.");
+        }
+
+        private static void OnRedo()
+        {
+            if (Cfg.CursorFollowsPlayer.Value) SnapCursorSoon();
+            if (Cfg.AnnounceUndoReset.Value) Talk.Incidental("Redo.");
+        }
+
+        private static void OnReset()
+        {
+            // A reset puts you back where the island started, so a cursor left anywhere else
+            // is pointing at a place that no longer means anything. Always bring it home.
+            SnapCursorSoon();
+            if (Cfg.AnnounceUndoReset.Value) Talk.Explicit("Reset.");
+        }
+
+        // --- bringing the cursor home after the board moves under it ------------------
+        //
+        // An island reset plays a transition, and the monster is not put back until partway
+        // through it - so when the reset event fires, you are often still standing where you
+        // were. Snapping then puts the cursor on your OLD spot.
+        //
+        // So the snap watches for you actually moving, for up to two seconds, and follows the
+        // moment you do. If you never move - the reset left you where you already were - it
+        // snaps when the time runs out, which is still correct.
+        private static bool _snapPending;
+        private static float _snapDeadline;
+        private static Vector3i _snapFrom;
+
+        private static void SnapCursorSoon()
+        {
+            _snapPending = true;
+            _snapDeadline = UnityEngine.Time.unscaledTime + 2f;
+            _snapFrom = Refs.PlayerPos;
+            ReviewCursor.FollowPlayer();     // right away as well, in case nothing moves
+        }
+
+        private static void TickSnap()
+        {
+            if (!_snapPending) return;
+
+            bool moved = !(Refs.PlayerPos == _snapFrom);
+            bool expired = UnityEngine.Time.unscaledTime >= _snapDeadline;
+            if (!moved && !expired) return;
+
+            _snapPending = false;
+            ReviewCursor.FollowPlayer();
+        }
 
         // --- plaques ----------------------------------------------------------
 

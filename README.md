@@ -48,8 +48,9 @@ are only two actions, both of which are just walking into things:
    source.
 4. A screen reader, or the Windows voice.
 
-The mod has no NuGet packages and no Harmony patches. Every reference comes from your game
-folder.
+The mod has no NuGet packages. It uses exactly one Harmony patch, for the optional
+arrows-always-review mode; everything else reads game state or subscribes to the game's own
+events. Every reference comes from your game folder.
 
 ## Building from source
 
@@ -92,10 +93,12 @@ one at a time, `Shift+F1` steps back. **`F2`** changes any key without leaving t
 | `Page Down` / `Page Up` | Category |
 | `Ctrl+Page Down` / `Ctrl+Page Up`, or `]` / `[` | Item in that category |
 | `Enter` | Full detail on it |
-| `V` | Review mode: arrow keys move a cursor, your monster stays put |
+| Hold `Alt` + arrows | Look around without moving: a quick glance |
+| `V` | Review mode: arrow keys move a cursor, for a longer look |
+| `F3` | Give the arrow keys to the cursor permanently; walk with `WASD` |
 | `M` (review mode) | Turn-by-turn directions to the cursor |
 | `\` | Nearest island you have not visited |
-| `1`–`9` | Set a bookmark (review mode) or walk back to it |
+| `1`–`9` | Walking directions to a bookmark; `Shift` + a number sets one |
 | `Ctrl` + `U I O / J K L / M , .` | Read the eight surrounding tiles |
 
 ## How things are named

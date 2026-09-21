@@ -65,11 +65,18 @@ namespace AMEAccess.Game
                     verdict = "DROPPED: unattributed and off this island";
                 else verdict = "kept";
 
+                string extra = "";
+                var lm = p as Landmark;
+                if (lm != null)
+                    extra = "  kind=" + Landmarks.KindOf(lm)
+                          + " behaviour=" + lm.interactionBehaviour
+                          + " prefab=" + (Landmarks.PrefabName(lm) ?? "-");
+
                 log.LogInfo(string.Format(
-                    "  {0,-14} at {1},{2},{3}  island={4}  hidden={5} fog={6} physical={7} interest={8}  {9}",
+                    "  {0,-14} at {1},{2},{3}  island={4}  hidden={5} fog={6} physical={7} interest={8}  {9}{10}",
                     p.type, pos.x, pos.y, pos.z,
                     p.island == null ? "null" : Naming.IslandName(p.island),
-                    p.hidden, p.fogOcclusionState, p.IsPhysical(), Interest(p), verdict));
+                    p.hidden, p.fogOcclusionState, p.IsPhysical(), Interest(p), verdict, extra));
                 shown++;
             }
 
@@ -183,7 +190,7 @@ namespace AMEAccess.Game
                 case PieceType.Log: return 95;
                 case PieceType.Raft: return 94;
                 case PieceType.Villager: return 90;
-                case PieceType.Landmark: return 88;
+                case PieceType.Landmark: return Landmarks.Interest(Landmarks.KindOf(p as Landmark));
                 case PieceType.Monument: return 86;
                 case PieceType.Campfire: return 84;
                 case PieceType.WarpPoint: return 82;
@@ -442,7 +449,7 @@ namespace AMEAccess.Game
                 case PieceType.TreeStump: return "stump";
                 case PieceType.Ramp: return "ramp";
                 case PieceType.Villager: return "villager";
-                case PieceType.Landmark: return "exhibit";
+                case PieceType.Landmark: return Landmarks.Category(Landmarks.KindOf(p as Landmark));
                 case PieceType.Caption: return "plaque";
                 case PieceType.Monument: return "monument";
                 case PieceType.Campfire: return "campfire";
@@ -515,7 +522,8 @@ namespace AMEAccess.Game
             IslandOnly = !IslandOnly;
             Numbering.Forget();     // numbers are per scope as well as per island
             RebuildCycle();
-            return (IslandOnly ? "This island only. " : "Everything in sight. ") + IslandSurvey();
+            // IslandSurvey already ends by naming the scope, so it is not repeated here.
+            return IslandSurvey();
         }
 
         private static string CurrentCategory

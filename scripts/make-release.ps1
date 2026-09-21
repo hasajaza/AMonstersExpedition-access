@@ -70,6 +70,57 @@ function Add-ModFiles([string]$gameRoot) {
     }
 }
 
+
+# ---------------------------------------------------------------- zip writing
+#
+# NOT Compress-Archive. Windows PowerShell 5.1's Compress-Archive writes entry paths with
+# BACKSLASHES ("BepInEx\plugins\AMEAccess.dll") and no folder entries at all. The zip format
+# requires forward slashes, so a viewer that follows it shows that entry as one oddly named file
+# at the top level, or hides it - which is how the 1.0.0 and 1.0.1 downloads appeared to contain
+# only the speech DLLs. Writing the zip through .NET directly lets us set the names ourselves.
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+function New-Zip([string]$sourceDir, [string]$zipPath) {
+    if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+
+    $base = (Resolve-Path $sourceDir).Path.TrimEnd('\') + '\'
+    $zip = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        # Folder entries first, so every viewer shows the folder structure.
+        Get-ChildItem -Path $sourceDir -Recurse -Directory | ForEach-Object {
+            $rel = $_.FullName.Substring($base.Length) -replace '\\', '/'
+            [void]$zip.CreateEntry($rel + '/')
+        }
+        Get-ChildItem -Path $sourceDir -Recurse -File | ForEach-Object {
+            $rel = $_.FullName.Substring($base.Length) -replace '\\', '/'
+            [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $zip, $_.FullName, $rel, [System.IO.Compression.CompressionLevel]::Optimal)
+        }
+    }
+    finally { $zip.Dispose() }
+}
+
+# Open a finished zip and prove it is right. Stops the script rather than let a broken download
+# be published: every path must use forward slashes, and every file named must be in it.
+function Test-Zip([string]$zipPath, [string[]]$mustContain) {
+    $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+    try {
+        $names = @($zip.Entries | ForEach-Object { $_.FullName })
+    }
+    finally { $zip.Dispose() }
+
+    $bad = @($names | Where-Object { $_ -like '*\*' })
+    if ($bad.Count -gt 0) { throw "Zip check failed, backslash paths in ${zipPath}: $($bad -join ', ')" }
+
+    foreach ($need in $mustContain) {
+        if ($names -notcontains $need) { throw "Zip check failed: $need is missing from $zipPath" }
+    }
+
+    Write-Host "  Checked: $($names.Count) entries, all forward-slash paths, required files present."
+    foreach ($need in $mustContain) { Write-Host "    contains $need" }
+}
+
 $release = Join-Path $root "release"
 New-Item -ItemType Directory -Force -Path $release | Out-Null
 
@@ -87,9 +138,9 @@ Get-ChildItem (Join-Path $kit "licenses") -Filter *.txt -ErrorAction SilentlyCon
     ForEach-Object { Copy-Item $_.FullName $lic }
 
 $modZip = Join-Path $release "AMEAccess-$version-mod-only.zip"
-if (Test-Path $modZip) { Remove-Item $modZip -Force }
-Compress-Archive -Path (Join-Path $stageMod "*") -DestinationPath $modZip
+New-Zip $stageMod $modZip
 Write-Host "Wrote $modZip"
+Test-Zip $modZip @("BepInEx/plugins/AMEAccess.dll", "UniversalSpeech.dll")
 
 # ---------------------------------------------------------------- complete zip
 if ($BepInExZip -eq "" -and -not $UseInstalledBepInEx) {
@@ -174,6 +225,8 @@ Get-ChildItem (Join-Path $kit "licenses") -Filter *.txt -ErrorAction SilentlyCon
     ForEach-Object { Copy-Item $_.FullName $lic2 }
 
 $allZip = Join-Path $release "AMEAccess-$version-complete.zip"
-if (Test-Path $allZip) { Remove-Item $allZip -Force }
-Compress-Archive -Path (Join-Path $stageAll "*") -DestinationPath $allZip
+New-Zip $stageAll $allZip
 Write-Host "Wrote $allZip"
+Test-Zip $allZip @("Install.cmd", "install.ps1", "files/winhttp.dll",
+                   "files/BepInEx/core/BepInEx.dll", "files/BepInEx/plugins/AMEAccess.dll",
+                   "files/UniversalSpeech.dll")

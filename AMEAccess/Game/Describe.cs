@@ -135,10 +135,9 @@ namespace AMEAccess.Game
 
         private static string LandmarkName(Piece p)
         {
+            // A Landmark is not necessarily an exhibit; see Landmarks for the full list.
             var lm = p as Landmark;
-            if (lm == null) return "exhibit";
-            string name = GameText.ExhibitTitle(lm);
-            return string.IsNullOrEmpty(name) ? "exhibit" : name;
+            return lm == null ? "landmark" : Landmarks.Name(lm);
         }
 
         // -------------------------------------------------------------------------
@@ -328,8 +327,16 @@ namespace AMEAccess.Game
                             case Landmark.InteractionBehaviour.Bench: return "sit down";
                             case Landmark.InteractionBehaviour.FerryOutro: return "board the ferry";
                         }
+
+                        // No behaviour: only an exhibit has a plaque to read. A prop does nothing
+                        // when walked into, so saying "read the plaque" sent you at a post in the
+                        // water expecting text.
+                        var kind = Landmarks.KindOf(lm);
+                        if (kind == LandmarkKind.Exhibit) return "read the plaque";
+                        if (kind == LandmarkKind.Friend) return "hug";
+                        return "blocked";
                     }
-                    return "read the plaque";
+                    return "blocked";
 
                 case PieceType.Villager: return "talk";
                 case PieceType.WarpPoint: return "open the map";
