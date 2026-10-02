@@ -53,7 +53,7 @@ namespace AMEAccess
 
             _index = -1;
             return "Change keys. Use the bracket keys to step through the actions, enter to "
-                 + "change the one you are on, escape to finish.";
+                 + "change the one you are on, and this key or escape to finish.";
         }
 
         private static List<Cfg.Binding> All => Cfg.AllBindings;
@@ -89,7 +89,11 @@ namespace AMEAccess
 
             if (_capturing) return Capture();
 
-            if (Input.GetKeyDown(KeyCode.Escape)) { Talk.Explicit(Toggle()); return true; }
+            // Both leave. The opening key is the tidy way out, because the game also reads
+            // escape and will open its own menu behind us - but being unable to leave at all is
+            // far worse than a menu opening, so escape works too.
+            if (Cfg.Pressed(Cfg.KeyRebind) || Input.GetKeyDown(KeyCode.Escape))
+            { Talk.Explicit(Toggle()); return true; }
             if (Input.GetKeyDown(KeyCode.RightBracket)) { Talk.Explicit(Step(1)); return true; }
             if (Input.GetKeyDown(KeyCode.LeftBracket)) { Talk.Explicit(Step(-1)); return true; }
             if (Input.GetKeyDown(KeyCode.PageDown)) { Talk.Explicit(Step(1)); return true; }
@@ -117,7 +121,7 @@ namespace AMEAccess
                 }
                 _capturing = true;
                 Talk.Explicit("Press the new key for " + KeyNames.Action(all[_index].Name)
-                            + ". Hold control or shift with it if you want them. Escape to cancel.");
+                            + ". Hold control or shift with it if you want them. Press F2 again to cancel.");
                 return true;
             }
 
@@ -126,7 +130,7 @@ namespace AMEAccess
 
         private static bool Capture()
         {
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Cfg.Pressed(Cfg.KeyRebind) || Input.GetKeyDown(KeyCode.Escape))
             {
                 _capturing = false;
                 Talk.Explicit("Cancelled. " + Announce());

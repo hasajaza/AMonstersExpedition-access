@@ -18,7 +18,7 @@ namespace AMEAccess
         /// mod before - they keep the old key silently, and the documentation stops matching
         /// their install. Raising this version resets the key bindings to the current defaults.
         /// </summary>
-        private const int KeyLayoutVersion = 10;
+        private const int KeyLayoutVersion = 14;
 
         private static ConfigEntry<int> _layoutVersion;
         private static ConfigFile _file;
@@ -118,6 +118,48 @@ namespace AMEAccess
         internal static ConfigEntry<KeyboardShortcut> KeyInspect;
         internal static ConfigEntry<KeyboardShortcut> KeyIslandsNearby;
         internal static ConfigEntry<KeyboardShortcut> KeyNextIsland;
+        internal static ConfigEntry<KeyboardShortcut> KeyMainRoute;
+        internal static ConfigEntry<KeyboardShortcut> KeyPadTest;
+        internal static ConfigEntry<KeyboardShortcut> KeyFeedbackMode;
+        internal static ConfigEntry<KeyboardShortcut> KeyPadSetup;
+
+        internal static ConfigEntry<string> FeedbackMode;
+        internal static ConfigEntry<float> SoundDistance;
+        internal static ConfigEntry<string> WaterSound;
+        internal static ConfigEntry<bool> PadEnabled;
+        internal static ConfigEntry<bool> PadAssignToGame;
+        internal static ConfigEntry<bool> PadMovesMonster;
+        internal static ConfigEntry<int> PadLeftStickX;
+        internal static ConfigEntry<int> PadLeftStickY;
+        internal static ConfigEntry<float> PadWalkRate;
+        internal static ConfigEntry<bool> PadMenus;
+        internal static ConfigEntry<int> PadStickClick, PadNearbyIslands, PadScope, PadUndo, PadReset;
+        internal static ConfigEntry<int> PadNextCategory, PadPrevCategory;
+
+        internal static ConfigEntry<int> PadMod1, PadMod2;
+        internal static readonly Dictionary<string, ConfigEntry<string>> PadBindings =
+            new Dictionary<string, ConfigEntry<string>>();
+
+        /// <summary>
+        /// One text binding per action. Written as "3" or "mod1+3", so holding a shoulder gives
+        /// a second and third set of the same buttons - the only way forty actions fit on a pad.
+        /// </summary>
+        private static ConfigEntry<string> PadBind(ConfigFile c, string name, string def, string desc)
+        {
+            var e = c.Bind("Controller buttons", name, def, desc);
+            PadBindings[name] = e;
+            return e;
+        }
+        internal static ConfigEntry<bool> PadInvertY;
+        internal static ConfigEntry<bool> PadInvertSet;
+        internal static ConfigEntry<bool> PadInvertX;
+        internal static ConfigEntry<int> PadRightStickX;
+        internal static ConfigEntry<int> PadRightStickY;
+        internal static ConfigEntry<float> PadDeadzone;
+        internal static ConfigEntry<float> PadRepeatDelay;
+        internal static ConfigEntry<float> PadRepeatRate;
+        internal static ConfigEntry<int> PadSurvey, PadLookAround, PadPosition, PadNextItem,
+                                         PadPrevItem, PadInspect, PadCursorHome, PadRoute;
         internal static ConfigEntry<KeyboardShortcut> KeyListBookmarks;
         internal static ConfigEntry<KeyboardShortcut> KeyReadHints;
         internal static ConfigEntry<KeyboardShortcut> KeySpeechTest;
@@ -247,6 +289,17 @@ namespace AMEAccess
                 "everything in sight including logs and rafts in the water around it.");
             KeyInspect = BindKey(c, K, "Inspect", new KeyboardShortcut(KeyCode.Return),
                 "Full detail on the object you last stepped to, or the one you are facing.");
+            KeyPadSetup = BindKey(c, K, "ControllerSetup", new KeyboardShortcut(KeyCode.F7),
+                "Set up the controller from inside the game: step through the actions, push a " +
+                "stick or press a button to set each one. Like the key changer, but for a pad.");
+            KeyFeedbackMode = BindKey(c, K, "SpeechOrSound", new KeyboardShortcut(KeyCode.F6),
+                "Switch between speech, sound and both for describing tiles.");
+            KeyPadTest = BindKey(c, K, "ControllerTest", new KeyboardShortcut(KeyCode.F5),
+                "Say the number of whatever stick or button you move, so you can write it into " +
+                "the controller settings below. Press again to stop.");
+            KeyMainRoute = BindKey(c, K, "MainRoute", new KeyboardShortcut(KeyCode.F4),
+                "Are you on the game's main route? If not, where it is and which postbox lands " +
+                "you nearest to it.");
             KeyNextIsland = BindKey(c, K, "NextIsland", new KeyboardShortcut(KeyCode.Backslash),
                 "Where to go next: the nearest island you have not visited, how far it is, and " +
                 "whether you can already walk there.");
@@ -329,6 +382,7 @@ namespace AMEAccess
                 "jumps is set by CursorBigStep.");
 
             const string B = "Behaviour";
+            const string P = "Controller";
             AnnounceMoves = c.Bind(B, "AnnounceMoves", true,
                 "Say something after each step.");
             MoveDetail = c.Bind(B, "MoveDetail", 1,
@@ -359,6 +413,162 @@ namespace AMEAccess
                 "is what shows a sighted player the tile lines, so this keeps the two in step: " +
                 "grid on, coordinates spoken; grid off, quiet. Set false to use SpeakCoordinates " +
                 "on its own instead.");
+            // ---- Controller ------------------------------------------------------------
+            //
+            // The left stick is the game's: it moves your monster, and the game's own buttons
+            // handle undo, reset and the rest. These settings are only for what the game has no
+            // equivalent of.
+            WaterSound = c.Bind(B, "WaterSound", "split",
+                "Which of the game's splashes water uses. Try these if the current one sounds " +
+                "doubled or is hard to hear: split, roll, knock, raft, standup, fall. Each is a " +
+                "single event from the game, and they differ in length and sharpness.");
+
+            SoundDistance = c.Bind(B, "SoundDistance", 2.5f,
+                "How close the tile sounds are played to you, which is what makes them audible " +
+                "over the music. They are still played in the direction of the tile, so east " +
+                "still sounds east - only the distance is shortened. Lower is louder. Zero " +
+                "plays them flat, as loud as possible, with no direction at all.");
+
+            FeedbackMode = c.Bind(B, "FeedbackMode", "speech",
+                "How tiles are reported as you move the cursor or read around you: speech, " +
+                "sound, or both. Sound uses the game's own audio, played from the tile itself, " +
+                "so it comes from the right direction. Names, plaques and menus are always " +
+                "spoken whatever this is set to.");
+
+            PadMenus = c.Bind(P, "LeftStickMovesMenus", true,
+                "Move through menus with the left stick, and choose with the stick click. The " +
+                "game does this itself for a controller it recognises; for one it does not, " +
+                "the menus cannot be used at all without this.");
+            PadStickClick = c.Bind(P, "ButtonStickClick", 10,
+                "Button number for pressing the left stick in, which chooses a menu item. 10 is " +
+                "the usual number; the controller setup key finds yours.");
+
+            PadMovesMonster = c.Bind(P, "LeftStickMovesMonster", true,
+                "Move your monster with the left stick. The game does this itself for a " +
+                "controller it recognises; for one it does not, nothing happens without this.");
+            PadLeftStickX = c.Bind(P, "LeftStickX", 0,
+                "Axis number for the left stick left and right.");
+            PadLeftStickY = c.Bind(P, "LeftStickY", 1,
+                "Axis number for the left stick up and down.");
+            PadWalkRate = c.Bind(P, "WalkRate", 0.22f,
+                "Seconds between steps when the left stick is held.");
+
+            PadAssignToGame = c.Bind(P, "GiveControllerToGame", true,
+                "Hand the controller to the game if Rewired has not assigned it. Some pads are " +
+                "not recognised and the game then gets nothing from them, so the left stick " +
+                "does not move your monster. Turn off if it causes trouble.");
+
+            PadEnabled = c.Bind(P, "Enabled", true,
+                "Use a controller for the review cursor and the actions set below.");
+            // No defaults on purpose. Axis numbers differ between controllers, and a wrong
+            // guess is not harmless: a DualSense rests its triggers at -1, so an axis picked
+            // blindly can look like a stick held hard over, and the cursor runs away. Unbound
+            // until you set it from the controller test.
+            PadRightStickX = c.Bind(P, "RightStickX", -1,
+                "Axis number for the right stick left and right. -1 is unbound. Press the " +
+                "controller test key, push the stick right, and use the number it says.");
+            PadRightStickY = c.Bind(P, "RightStickY", -1,
+                "Axis number for the right stick up and down. -1 is unbound. Press the " +
+                "controller test key, push the stick up, and use the number it says.");
+            PadInvertX = c.Bind(P, "InvertLeftRight", false,
+                "Set true if pushing the stick right moves the cursor west. The controller " +
+                "setup key works this out for you.");
+            PadInvertSet = c.Bind(P, "InvertUpDownWasSet", false,
+                "Do not edit. Remembers that the up and down setting has been decided, so a " +
+                "recognised controller does not keep overwriting your choice.");
+            PadInvertY = c.Bind(P, "InvertUpDown", false,
+                "Set true if pushing the stick up moves the cursor south.");
+            PadDeadzone = c.Bind(P, "Deadzone", 0.5f,
+                "How far the stick must go before it counts. Raise it if the cursor drifts.");
+            PadRepeatDelay = c.Bind(P, "RepeatDelay", 0.35f,
+                "Seconds before a held stick starts repeating.");
+            PadRepeatRate = c.Bind(P, "RepeatRate", 0.15f,
+                "Seconds between steps once it is repeating.");
+
+            PadSurvey = c.Bind(P, "ButtonSurvey", -1, "Button number for the island survey. -1 is unbound.");
+            PadLookAround = c.Bind(P, "ButtonLookAround", -1, "Button number for look around. -1 is unbound.");
+            PadPosition = c.Bind(P, "ButtonPosition", -1, "Button number for your position. -1 is unbound.");
+            PadNextItem = c.Bind(P, "ButtonNextItem", -1, "Button number for the next object. -1 is unbound.");
+            PadPrevItem = c.Bind(P, "ButtonPreviousItem", -1, "Button number for the previous object. -1 is unbound.");
+            PadInspect = c.Bind(P, "ButtonInspect", -1, "Button number for full detail. -1 is unbound.");
+            PadCursorHome = c.Bind(P, "ButtonCursorHome", -1, "Button number to put the cursor back on you. -1 is unbound.");
+            PadRoute = c.Bind(P, "ButtonMainRoute", -1, "Button number for the main route. -1 is unbound.");
+            PadNearbyIslands = c.Bind(P, "ButtonNearbyIslands", -1, "Button number for nearby islands. -1 is unbound.");
+            PadScope = c.Bind(P, "ButtonThisIslandOnly", -1, "Button number for switching between this island only and everything in sight. -1 is unbound.");
+            PadUndo = c.Bind(P, "ButtonUndo", -1, "Button number for undo. -1 is unbound.");
+            PadReset = c.Bind(P, "ButtonResetIsland", -1, "Button number for resetting the island. -1 is unbound.");
+            // ---- what each button does ------------------------------------------------
+            //
+            // Everything the keyboard can do is here, so a player can pick whichever handful
+            // they actually want. Only the ones you cannot play without are given a default:
+            // moving, looking, choosing, undo, reset and the menu. The rest start unbound and
+            // are set with the controller setup key, which also records whether a shoulder was
+            // held, so putting something on the second or third set is just holding a shoulder
+            // while you press.
+            //
+            // The defaults assume the four face buttons are 0 to 3, which is what a DualSense
+            // reported. If yours differs, the setup key fixes it without touching this file.
+            // The two stick clicks carry the two actions you reach for constantly, so they are
+            // under the thumbs already holding the sticks: press the left stick to choose, the
+            // right stick to open or close the menu.
+            //
+            // 10 and 11 are the stick clicks in the standard layout, which is the one this
+            // controller reported. If yours numbers them differently, the setup key fixes it
+            // without touching this file.
+            PadBind(c, "Choose",            "10", "Press the thing in front of you, or choose a menu item. The left stick click.");
+            PadBind(c, "Menu",              "11", "Open or close the game's menu, the escape key's job. The right stick click.");
+            PadBind(c, "Undo",              "1", "Undo the last move.");
+            PadBind(c, "LookAround",        "2", "What is on all four sides of you.");
+
+            PadBind(c, "IslandSurvey",      "", "Counts of everything on the island.");
+            PadBind(c, "Position",          "", "Where you are and what you are standing on.");
+            PadBind(c, "Facing",            "", "Which way you are facing, and the plaque in front of you.");
+            PadBind(c, "DistanceScan",      "", "How far it is to water in each direction.");
+            PadBind(c, "IslandInfo",        "", "The island's name and size.");
+            PadBind(c, "Status",            "", "Moves made, and whether undo and reset are available.");
+            PadBind(c, "Stats",             "", "Islands visited, exhibits found, time played.");
+            PadBind(c, "ResetIsland",       "", "Put the island back as it started.");
+
+            PadBind(c, "NextObject",        "", "Next object on the island, or next destination on the warp map.");
+            PadBind(c, "PreviousObject",    "", "Previous object, or previous destination.");
+            PadBind(c, "NextGroup",         "", "Next category, or next group of destinations.");
+            PadBind(c, "PreviousGroup",     "", "Previous category or group.");
+            PadBind(c, "FullDetail",        "", "Everything known about the selected object.");
+            PadBind(c, "ThisIslandOnly",    "", "Switch between this island only and everything in sight.");
+
+            PadBind(c, "CursorHome",        "", "Put the review cursor back on your monster.");
+            PadBind(c, "ReadColumn",        "", "Everything stacked on the cursor's tile.");
+            PadBind(c, "RouteToCursor",     "", "Walking directions to the review cursor.");
+            PadBind(c, "JumpCursorToObject","", "Put the cursor on the selected object.");
+
+            PadBind(c, "NearbyIslands",     "", "Other islands in range.");
+            PadBind(c, "NextIsland",        "", "The nearest island you have not visited.");
+            PadBind(c, "MainRoute",         "", "Whether you are on the game's main route, and where it is.");
+
+            PadBind(c, "ReadHints",         "", "Where the island hints point, while they are showing.");
+            PadBind(c, "RepeatLast",        "", "Say the last thing again.");
+            PadBind(c, "RepeatPlaque",      "", "Read the last exhibit plaque again.");
+            PadBind(c, "PreviousPlaque",    "", "Step back through the plaques you have read.");
+
+            PadBind(c, "North",             "", "Read the tile to the north.");
+            PadBind(c, "South",             "", "Read the tile to the south.");
+            PadBind(c, "East",              "", "Read the tile to the east.");
+            PadBind(c, "West",              "", "Read the tile to the west.");
+
+            PadBind(c, "ReviewMode",        "", "Freeze your monster and move a cursor instead.");
+            PadBind(c, "SpeechOrSound",     "", "Switch between speech, sound and both.");
+            PadBind(c, "ListBookmarks",     "", "List the bookmarks you have set.");
+
+            // The two shoulder buttons that reach the second and third set of actions. Set
+            // them from the controller setup key; without them only the plain buttons work.
+            PadMod1 = c.Bind(P, "FirstShoulder", -1,
+                "Button number of the shoulder held for the second set of actions.");
+            PadMod2 = c.Bind(P, "SecondShoulder", -1,
+                "Button number of the shoulder held for the third set of actions.");
+
+            PadNextCategory = c.Bind(P, "ButtonNextGroup", -1, "Button number for the next group: categories on an island, groups of destinations on the warp map. -1 is unbound.");
+            PadPrevCategory = c.Bind(P, "ButtonPreviousGroup", -1, "Button number for the previous group. -1 is unbound.");
+
             SpeakCoordinates = c.Bind(B, "SpeakCoordinates", true,
                 "Include your grid coordinates when speaking your position. A sighted player " +
                 "does not see these; they are an orientation aid. Turn off for a purer experience.");

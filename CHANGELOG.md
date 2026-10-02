@@ -1,5 +1,89 @@
 # Changelog
 
+## 1.2.0
+
+### Controller support
+
+- **The game can be played start to finish on a controller.** The left stick moves your monster
+  and moves through menus, the right stick moves the review cursor, the left stick click chooses
+  and the right stick click opens the game's menu — the escape key's job, so you can save and
+  quit from the pad.
+
+- **Thirty-six actions can go on a button.** A pad has about sixteen inputs, so buttons come in
+  three sets: a button on its own, the same button with the first shoulder held, and again with
+  the second. The same idea as holding control on the keyboard.
+
+  Everything starts unbound except what you cannot play without, so nobody inherits a layout
+  they did not choose.
+
+- **`F7` sets the controller up from inside the game.** Step through the actions, press enter,
+  then push the stick or press the button. Pushing a stick is how the axes are found, because no
+  name or number can be trusted: it takes whatever moved furthest and sees which way it went, so
+  there is no invert setting to get wrong. Holding a shoulder while you press puts the action on
+  the second or third set.
+
+- **`F5` reports what the controller is doing** — which pad, how it was recognised, what each
+  axis reads, and which button you just pressed.
+
+- **DualSense, DualShock and Xbox pads set themselves up.** Rewired has no template for every
+  controller, so the mod recognises these by name and fills in the numbers, measured from real
+  hardware. It only fills in what is unset, so your own choices stand.
+
+- **The mod hands the controller to the game if Rewired has not.** A pad the game does not
+  recognise is never assigned to the player it reads from, which is why a DualSense moved
+  nothing at all — with or without the mod. Where that is not enough, the mod issues the move
+  itself, through the same call the game's own keyboard code makes.
+
+- **In the settings, the stick changes a slider's value** rather than moving to another row, so
+  the volume can be set from a pad.
+
+### Sound instead of speech
+
+- **`F6` switches between speech, sound and both.** Tiles can be reported with the game's own
+  audio: a splash for water, a footstep for land, a tap on the trunk for a tree, a wooden thunk
+  for a log, the postbox tap, the caption chime for an exhibit. Nothing is shipped and nothing
+  is licensed, because it is the game's audio being asked to play.
+
+  Each is played in the direction of the tile, close enough to be heard over the music, so
+  sweeping the cursor or using the direction cluster lets you hear the shape of an island.
+
+  Names, plaques, island summaries and menus are always spoken: a sound can say "exhibit", never
+  which exhibit.
+
+### The warp map
+
+- **Destinations say whether they are on the main route.** Working out a destination's island
+  used to ask the live board, which only answers for islands that happen to be loaded — almost
+  none of them on a map of dozens. It now walks the world data the game itself uses, so every
+  destination can be matched whether its island is loaded or not.
+
+- **Friend markers are read**, and say whether the friend is on that island or the marker only
+  points that way. They are only reported while the game's own friend hints are on.
+
+- **Groups, for a map with dozens of destinations**: all, towards the main route, main route,
+  friends, not visited, visited. The map opens in the route group, because that is the question
+  you opened it for.
+
+- **`F4` says whether you are on the main route**, and if not, where it is and which postbox
+  lands you nearest. The route often points at islands with no postbox, so "no main route" was
+  true and useless.
+
+### Reading the island
+
+- **Not everything is an exhibit.** The game uses one piece type for exhibits, benches, huts,
+  trophies, friends, the ferry and plain props, and the mod called them all exhibits — so a post
+  in the water turned up in the exhibit count. Each is now named for what it is, and a prop that
+  does nothing and blocks nothing is left out of the survey.
+
+- **Boulders say why you cannot pass them**, instead of naming the ground beneath them, and no
+  longer claim you can stand on something two steps up.
+
+- **Spawn points are gone from the survey.** They are invisible markers; nothing is drawn for
+  them, so listing them put an object in your survey that a sighted player cannot see.
+
+- **Reset brings the review cursor back to you**, waiting for the island to actually reset
+  rather than snapping to where you used to be.
+
 ## 1.1.0
 
 - **The downloads are fixed.** The 1.0.0 and 1.0.1 zips were built with Windows PowerShell's

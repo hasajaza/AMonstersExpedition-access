@@ -23,6 +23,8 @@ using ReviewCursor = AMEAccess.Game.ReviewCursor;
 using Bookmarks = AMEAccess.Game.Bookmarks;
 using PlaqueLog = AMEAccess.Game.PlaqueLog;
 using Stats = AMEAccess.Game.Stats;
+using Pad = AMEAccess.Game.Pad;
+using Sfx = AMEAccess.Game.Sfx;
 using Survey = AMEAccess.Game.Survey;
 using WarpReader = AMEAccess.Game.WarpReader;
 
@@ -121,7 +123,7 @@ namespace AMEAccess
                                       "cannot read game state yet. If you are past the title screen " +
                                       "this is a bug worth reporting.");
                 }
-                if (_announcedReady) { _announcedReady = false; _reviewMode = false; Hooks.Unsubscribe(); Refs.Forget(); GameKeys.Forget(); WarpReader.Forget(); }
+                if (_announcedReady) { _announcedReady = false; _reviewMode = false; Hooks.Unsubscribe(); Refs.Forget(); GameKeys.Forget(); WarpReader.Forget(); Sfx.ForgetListener(); }
                 return;
             }
 
@@ -137,10 +139,14 @@ namespace AMEAccess
 
             // Rebinding owns the keyboard while it is on, so it goes before everything.
             if (Rebinder.Active) { Rebinder.Handle(); return; }
+            if (PadBinder.Active) { PadBinder.Handle(); return; }
             if (Cfg.Pressed(Cfg.KeyRebind)) { Talk.Explicit(Rebinder.Toggle()); return; }
             if (Cfg.Pressed(Cfg.KeyArrowMode)) { Talk.Explicit(ToggleArrowMode()); return; }
 
             // Silence works everywhere, including menus.
+            // Controller input, before the keyboard keys.
+            Pad.Tick();
+
             // The warp map is its own screen with its own selection to follow.
             WarpReader.Tick();
 
@@ -173,10 +179,15 @@ namespace AMEAccess
             // On the warp map the island keys have no meaning, so point them at the map.
             if (WarpReader.Active)
             {
+                // The same two axes as the island survey: a group, then what is in it.
+                if (Cfg.Pressed(Cfg.KeyNextCategory)) { Talk.Explicit(WarpReader.CycleCategory(1)); return; }
+                if (Cfg.Pressed(Cfg.KeyPrevCategory)) { Talk.Explicit(WarpReader.CycleCategory(-1)); return; }
+
                 if (Cfg.Pressed(Cfg.KeyNextObject) || Cfg.Pressed(Cfg.KeyNextItem))
                 { Talk.Explicit(WarpReader.Step(1)); return; }
                 if (Cfg.Pressed(Cfg.KeyPrevObject) || Cfg.Pressed(Cfg.KeyPrevItem))
                 { Talk.Explicit(WarpReader.Step(-1)); return; }
+
                 if (Cfg.Pressed(Cfg.KeyInspect)) { Talk.Explicit(WarpReader.Activate()); return; }
                 if (Cfg.Pressed(Cfg.KeySurvey)) { Talk.Explicit(WarpReader.List()); return; }
                 if (Cfg.Pressed(Cfg.KeyWhereAmI) || Cfg.Pressed(Cfg.KeyIslandInfo))
@@ -222,6 +233,10 @@ namespace AMEAccess
             if (Cfg.Pressed(Cfg.KeyInspect)) { Talk.Explicit(InspectTarget()); return; }
             if (Cfg.Pressed(Cfg.KeyIslandsNearby)) { Talk.Explicit(Survey.NearbyIslands()); return; }
             if (Cfg.Pressed(Cfg.KeyNextIsland)) { Talk.Explicit(Survey.NearestUnvisited()); return; }
+            if (Cfg.Pressed(Cfg.KeyMainRoute)) { Talk.Explicit(WarpReader.RouteStatus()); return; }
+            if (Cfg.Pressed(Cfg.KeyPadTest)) { Pad.LogState(Logger); Talk.Explicit(Pad.ToggleDiscovery()); return; }
+            if (Cfg.Pressed(Cfg.KeyFeedbackMode)) { Talk.Explicit(Sfx.Cycle()); return; }
+            if (Cfg.Pressed(Cfg.KeyPadSetup)) { Talk.Explicit(PadBinder.Toggle()); return; }
             if (Cfg.Pressed(Cfg.KeyListBookmarks)) { Talk.Explicit(Bookmarks.List()); return; }
 
             if (Cfg.Pressed(Cfg.KeyReadHints)) { Talk.Explicit(Hints.Read()); return; }
@@ -230,7 +245,7 @@ namespace AMEAccess
 
         // -------------------------------------------------------------------------
 
-        private static string IslandInfo()
+        internal static string IslandInfo()
         {
             var island = Refs.CurrentIsland;
             if (island == null) return "Not on an island.";
@@ -253,7 +268,7 @@ namespace AMEAccess
             return sb.ToString();
         }
 
-        private static string Status()
+        internal static string Status()
         {
             var move = Refs.PlayerMove;
             var history = Refs.History;
@@ -330,6 +345,8 @@ namespace AMEAccess
         /// ways of looking around. Anything that used to ask "is review mode on?" should ask
         /// this instead, or it goes wrong in the other two.
         /// </summary>
+        internal static bool CursorIsLiveNow => CursorIsLive;
+
         private static bool CursorIsLive =>
             _reviewMode || _peeking || Cfg.ArrowsAlwaysReview.Value;
 
@@ -555,7 +572,7 @@ namespace AMEAccess
         /// This is the "take me there" step: it turns review mode on if needed, picks the first
         /// item in the category when nothing is selected yet, and moves the cursor onto it.
         /// </summary>
-        private static string JumpToSelected()
+        internal static string JumpToSelected()
         {
             var piece = Survey.Selected;
             if (piece == null)
@@ -583,6 +600,15 @@ namespace AMEAccess
             }
 
             return prefix + ReviewCursor.JumpTo(piece);
+        }
+
+        /// <summary>Flip review mode, for the controller to reach.</summary>
+        internal static string ToggleReviewMode()
+        {
+            SetReviewMode(!_reviewMode);
+            return _reviewMode
+                ? "Review mode. Your monster stays put."
+                : "Playing again.";
         }
 
         private static void SetReviewMode(bool on)
@@ -623,7 +649,7 @@ namespace AMEAccess
         /// Inspect whatever the player last stepped to with the object cycler, falling back to
         /// whatever they are facing.
         /// </summary>
-        private static string InspectTarget()
+        internal static string InspectTarget()
         {
             var picked = Survey.Selected;
             if (picked != null) return Details.Detail(picked);

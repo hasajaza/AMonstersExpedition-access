@@ -123,6 +123,99 @@ Ctrl+M   Ctrl+,   Ctrl+.          south-west   south   south-east
 
 These read the eight tiles touching you, without moving anything.
 
+## The warp map
+
+Postboxes open the warp map. It can hold dozens of destinations, so it is split into groups the
+same way the island survey is:
+
+| Key | Does |
+|---|---|
+| `Page Down` / `Page Up` | Group: towards the main route, all, main route, friends, not visited, visited |
+| `]` / `[` | Step through the destinations in that group |
+| `Enter` | Travel to the one you are on |
+| `T` | The shape of the map: counts, and the nearest one worth going to |
+| `K` or `I` | Repeat the current destination |
+
+Each destination reads as its name, how far and which way, whether you have visited it, and
+whether it is on the **main route** — the game's critical path, which is what the green markers
+show a sighted player — or is marked **towards a friend**, or has a **friend here**.
+
+The map opens in the **towards the main route** group, because that is the question you opened it
+for. The route usually points at islands with no postbox, so that group holds the five postboxes
+that land you nearest to it, closest first, each saying how far from the route it leaves you.
+Page up from there for everything else.
+
+## Speech, sound, or both
+
+**`F6`** switches how tiles are reported. The setting is saved, and is `FeedbackMode` in the
+config.
+
+| Mode | What you get |
+|---|---|
+| speech | words, as always |
+| sound | the game's own audio, played from the tile |
+| both | sound first, then the words |
+
+The sounds are the game's: a splash for water, a footstep for land, a tap on the trunk for a
+tree, a wooden thunk for a log, a stone knock for a boulder, the postbox tap, the caption chime
+for an exhibit.
+
+Each plays **in the direction of the tile**, so it arrives from the side it describes. Sweeping the
+review cursor or using the `Ctrl` cluster in sound mode lets you hear the shape of an island in
+a couple of seconds, which is the thing words are slowest at.
+
+If the sounds are too quiet under the music, lower `SoundDistance` in the config — it is how
+close to you they are played, so lower is louder. Zero plays them flat, which is loudest of all
+but loses the direction.
+
+Names, plaques, island summaries and menus are always spoken, whatever the mode. A sound can
+say "exhibit"; it cannot say which exhibit.
+
+## Controller
+
+Everything can be played from the pad. The sticks and a handful of buttons come set up; the rest
+you pick, because nobody wants forty buttons.
+
+| | |
+|---|---|
+| Left stick | Move your monster, and move through menus |
+| Right stick | Move the review cursor |
+| Left stick click | Choose: walk into what is in front, or pick a menu item |
+| Right stick click | Open or close the game's menu — the escape key's job |
+
+### Buttons come in three sets
+
+A pad has about sixteen inputs and the mod has far more actions than that, so a shoulder button
+reaches a second and third set of the same buttons — the same idea as holding `Ctrl` on the
+keyboard.
+
+- a button on its own
+- **hold the first shoulder** and the same buttons mean something else
+- **hold the second shoulder** for a third set
+
+That is three sets of a dozen buttons, which is more room than anyone needs.
+
+### What comes set up
+
+Only the things you cannot play without: **choose** on the left stick click, **the menu** on the
+right stick click, and **undo** and **look around** on two face buttons. The menu one is the
+escape key's job, so you can save and quit from the pad.
+
+In the settings, pushing the stick left and right on a slider changes its value and says the new
+one.
+
+### Setting the rest
+
+Press **`F7`**, step with `]` and `[`, press Enter on something, then press the button you want. `F7` again finishes.
+**Hold a shoulder while you press** to put it on the second or third set — nothing else to do,
+it notices.
+
+Thirty-six actions can go on a button, including every readout, the four directions, the review
+cursor keys, the plaque history, hints, repeat and the warp map.
+
+Sticks are set the same way: Enter, then push the stick in the direction it asks for. It works
+out which axis moved and which way round it is, so there are no numbers to find.
+
 ## Bookmarks
 
 Nine places you can mark and walk back to. It does not matter how you are looking around —

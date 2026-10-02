@@ -56,6 +56,12 @@ namespace AMEAccess.Game
         internal static string Read(Vector3i dir, bool atCursor)
         {
             var origin = Origin(atCursor);
+
+            // The sound comes from the tile, which is the direction the key already means - so
+            // in sound mode the cluster becomes nine tiles you can hear the shape of.
+            if (Sfx.SoundOn) Sfx.Tile(origin + dir, "");
+            if (!Sfx.SpeechOn) return "";
+
             var sb = new StringBuilder();
             sb.Append(Name(dir)).Append(": ");
 

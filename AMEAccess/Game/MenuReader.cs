@@ -557,7 +557,7 @@ namespace AMEAccess.Game
         }
 
         /// <summary>The slider belonging to this row: on it, below it, beside it, or above it.</summary>
-        private static Component FindSlider(GameObject go)
+        internal static Component FindSlider(GameObject go)
         {
             var c = SliderOn(go, 2);
             if (c != null) return c;

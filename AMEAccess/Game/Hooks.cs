@@ -177,7 +177,9 @@ namespace AMEAccess.Game
                 // The monster turns to face a move it could not make, so its facing is the
                 // direction that was refused.
                 string why = Describe.BlockedReason(Refs.PlayerFacing);
-                Talk.Incidental(string.IsNullOrEmpty(why) ? "Blocked." : "Blocked by " + why + ".");
+                Sfx.Blocked();
+                if (Sfx.SpeechOn)
+                    Talk.Incidental(string.IsNullOrEmpty(why) ? "Blocked." : "Blocked by " + why + ".");
             }
             _actedThisFrame = false;
             _movedThisFrame = false;

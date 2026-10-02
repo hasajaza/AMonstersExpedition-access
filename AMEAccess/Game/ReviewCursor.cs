@@ -53,7 +53,10 @@ namespace AMEAccess.Game
         {
             FollowPlayerIfIdle();
             _pos = _pos + dir * steps;
-            return Read();
+
+            // Sweeping terrain is exactly what sound is for and words are slowest at, so the
+            // cursor is where the sound mode earns its place. Sfx decides what is still spoken.
+            return Sfx.Tile(_pos, Read());
         }
 
         /// <summary>Jump the cursor to a piece.</summary>
